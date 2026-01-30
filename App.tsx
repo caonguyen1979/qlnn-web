@@ -13,15 +13,19 @@ import {
   X, 
   Plus, 
   Search, 
-  Filter,
   CheckCircle,
   XCircle,
-  Clock,
   Trash2,
-  Edit2
+  Edit2,
+  Mail,
+  Lock,
+  User as UserIcon,
+  ArrowLeft
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
+
+type AuthMode = 'login' | 'register' | 'forgot';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -30,11 +34,26 @@ const App: React.FC = () => {
   // App State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'settings'>('dashboard');
   const [data, setData] = useState<LeaveRequest[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile sidebar
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Login Form State
+  // Auth State
+  const [authMode, setAuthMode] = useState<AuthMode>('login');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
+  
+  // Login Inputs
   const [username, setUsername] = useState('');
-  const [loginError, setLoginError] = useState('');
+  const [password, setPassword] = useState('');
+  
+  // Register Inputs
+  const [regFullname, setRegFullname] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regUsername, setRegUsername] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  
+  // Forgot Inputs
+  const [forgotEmail, setForgotEmail] = useState('');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,25 +91,73 @@ const App: React.FC = () => {
   };
 
   // --- Auth Handlers ---
+  const clearAuthStates = () => {
+    setAuthError('');
+    setAuthSuccess('');
+    setAuthLoading(false);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoginError('');
-    setLoading(true);
+    clearAuthStates();
+    setAuthLoading(true);
     try {
-      const res = await gasService.login(username);
+      const res = await gasService.login(username, password);
       if (res.success && res.data) {
         setUser(res.data);
-        // Set session 4 hours
         const expiry = new Date().getTime() + 4 * 60 * 60 * 1000;
         localStorage.setItem(SESSION_KEY, JSON.stringify({ user: res.data, expiry }));
         loadData();
       } else {
-        setLoginError(res.message || 'Login failed');
+        setAuthError(res.message || 'Đăng nhập thất bại');
       }
     } catch (err) {
-      setLoginError('Lỗi kết nối');
+      setAuthError('Lỗi kết nối đến server');
     } finally {
-      setLoading(false);
+      setAuthLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearAuthStates();
+    setAuthLoading(true);
+    try {
+      const res = await gasService.register({
+        username: regUsername,
+        password: regPassword,
+        fullname: regFullname,
+        email: regEmail
+      });
+      
+      if (res.success) {
+        setAuthSuccess('Đăng ký thành công! Vui lòng đăng nhập.');
+        setTimeout(() => setAuthMode('login'), 2000);
+      } else {
+        setAuthError(res.message || 'Đăng ký thất bại');
+      }
+    } catch (err) {
+      setAuthError('Lỗi kết nối server');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearAuthStates();
+    setAuthLoading(true);
+    try {
+      const res = await gasService.resetPassword(forgotEmail);
+      if (res.success) {
+        setAuthSuccess(res.message || 'Đã gửi email khôi phục.');
+      } else {
+        setAuthError(res.message || 'Lỗi khôi phục');
+      }
+    } catch (err) {
+      setAuthError('Lỗi kết nối server');
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -98,6 +165,8 @@ const App: React.FC = () => {
     localStorage.removeItem(SESSION_KEY);
     setUser(null);
     setData([]);
+    setUsername('');
+    setPassword('');
   };
 
   // --- CRUD & Optimistic UI ---
@@ -126,13 +195,11 @@ const App: React.FC = () => {
     try {
       const res = await gasService.createRequest(formData, user);
       if (res.success && res.data) {
-        // Replace temp item with real one
         setData(prev => prev.map(item => item.id === tempId ? res.data! : item));
       } else {
         throw new Error("Failed");
       }
     } catch (err) {
-      // Rollback
       setData(prev => prev.filter(item => item.id !== tempId));
       alert("Lỗi khi lưu dữ liệu. Vui lòng thử lại.");
     } finally {
@@ -145,7 +212,6 @@ const App: React.FC = () => {
     setIsSubmitting(true);
     
     const previousData = [...data];
-    // Optimistic Update
     setData(prev => prev.map(item => item.id === editingItem.id ? { ...item, ...formData } : item));
     setIsModalOpen(false);
     setEditingItem(null);
@@ -154,7 +220,7 @@ const App: React.FC = () => {
       const res = await gasService.updateRequest(editingItem.id, formData);
       if (!res.success) throw new Error();
     } catch (err) {
-      setData(previousData); // Rollback
+      setData(previousData);
       alert("Cập nhật thất bại.");
     } finally {
       setIsSubmitting(false);
@@ -165,7 +231,7 @@ const App: React.FC = () => {
     if (!confirm("Bạn có chắc chắn muốn xóa?")) return;
     
     const previousData = [...data];
-    setData(prev => prev.filter(item => item.id !== id)); // Optimistic delete
+    setData(prev => prev.filter(item => item.id !== id));
 
     try {
       const res = await gasService.deleteRequest(id);
@@ -194,8 +260,6 @@ const App: React.FC = () => {
                             item.id.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesClass = filterClass ? item.class === filterClass : true;
       const matchesStatus = filterStatus ? item.status === filterStatus : true;
-      
-      // Permission Filter: HS can only see their own
       const permissionCheck = user?.role === Role.HS ? item.createdBy === user.username : true;
 
       return matchesSearch && matchesClass && matchesStatus && permissionCheck;
@@ -203,7 +267,7 @@ const App: React.FC = () => {
   }, [data, searchTerm, filterClass, filterStatus, user]);
 
 
-  // --- Render Login ---
+  // --- Render Login / Auth ---
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -213,59 +277,139 @@ const App: React.FC = () => {
             <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
             <div className="relative z-10">
               <h1 className="text-4xl font-bold mb-4">{APP_NAME}</h1>
-              <p className="text-lg opacity-90">Hệ thống quản lý nghỉ phép học sinh thông minh, nhanh chóng và hiệu quả.</p>
-              <ul className="mt-8 space-y-2 opacity-80 list-disc list-inside">
-                <li>Nộp đơn trực tuyến</li>
-                <li>Duyệt phép tức thì</li>
-                <li>Báo cáo tự động</li>
-              </ul>
+              <p className="text-lg opacity-90">Hệ thống quản lý nghỉ phép học sinh thông minh.</p>
             </div>
           </div>
 
-          {/* Right: Form */}
+          {/* Right: Forms */}
           <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
-            <div className="text-center md:text-left mb-8">
-              <h2 className="text-2xl font-bold text-gray-800">Đăng nhập</h2>
-              <p className="text-gray-500">Nhập thông tin tài khoản của bạn</p>
+            
+            {/* Header Text */}
+            <div className="text-center md:text-left mb-6">
+              {authMode === 'login' && (
+                <>
+                  <h2 className="text-2xl font-bold text-gray-800">Đăng nhập</h2>
+                  <p className="text-gray-500">Chào mừng trở lại!</p>
+                </>
+              )}
+              {authMode === 'register' && (
+                <>
+                  <h2 className="text-2xl font-bold text-gray-800">Đăng ký</h2>
+                  <p className="text-gray-500">Tạo tài khoản mới</p>
+                </>
+              )}
+              {authMode === 'forgot' && (
+                <>
+                  <h2 className="text-2xl font-bold text-gray-800">Quên mật khẩu?</h2>
+                  <p className="text-gray-500">Nhập email để lấy lại mật khẩu</p>
+                </>
+              )}
             </div>
-            
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label>
-                <input 
-                  type="text" 
-                  required
-                  className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  placeholder="admin, teacher, student..."
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                />
-              </div>
-              
-              {/* Fake password field for UI completeness */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
-                <input 
-                  type="password" 
-                  className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  placeholder="••••••••"
-                />
-              </div>
 
-              {loginError && <div className="text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">{loginError}</div>}
+            {/* Notification Messages */}
+            {authError && <div className="mb-4 text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">{authError}</div>}
+            {authSuccess && <div className="mb-4 text-green-600 text-sm bg-green-50 p-3 rounded-lg border border-green-100">{authSuccess}</div>}
 
-              <button 
-                type="submit" 
-                disabled={loading}
-                className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors shadow-lg shadow-blue-500/30"
-              >
-                {loading ? 'Đang xử lý...' : 'Đăng nhập'}
-              </button>
-            </form>
+            {/* LOGIN FORM */}
+            {authMode === 'login' && (
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label>
+                  <div className="relative">
+                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="text" 
+                      required
+                      className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="password" 
+                      required
+                      className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                  <div className="text-right mt-1">
+                    <button type="button" onClick={() => setAuthMode('forgot')} className="text-xs text-primary hover:underline">Quên mật khẩu?</button>
+                  </div>
+                </div>
+                <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors">
+                  {authLoading ? 'Đang xử lý...' : 'Đăng nhập'}
+                </button>
+                <div className="text-center text-sm text-gray-500 mt-4">
+                  Chưa có tài khoản? <button type="button" onClick={() => setAuthMode('register')} className="text-primary font-semibold hover:underline">Đăng ký ngay</button>
+                </div>
+              </form>
+            )}
+
+            {/* REGISTER FORM */}
+            {authMode === 'register' && (
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
+                  <input type="text" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
+                    value={regFullname} onChange={e => setRegFullname(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input type="email" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
+                    value={regEmail} onChange={e => setRegEmail(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label>
+                  <input type="text" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
+                    value={regUsername} onChange={e => setRegUsername(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                  <input type="password" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
+                    value={regPassword} onChange={e => setRegPassword(e.target.value)} />
+                </div>
+                <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors">
+                  {authLoading ? 'Đang đăng ký...' : 'Đăng ký'}
+                </button>
+                <div className="text-center text-sm mt-4">
+                  <button type="button" onClick={() => setAuthMode('login')} className="text-gray-500 hover:text-gray-800">Quay lại đăng nhập</button>
+                </div>
+              </form>
+            )}
+
+            {/* FORGOT PASSWORD FORM */}
+            {authMode === 'forgot' && (
+              <form onSubmit={handleForgot} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email đã đăng ký</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="email" 
+                      required
+                      className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors">
+                  {authLoading ? 'Đang gửi...' : 'Gửi mật khẩu mới'}
+                </button>
+                <div className="text-center text-sm mt-4">
+                  <button type="button" onClick={() => setAuthMode('login')} className="flex items-center justify-center w-full text-gray-500 hover:text-gray-800">
+                    <ArrowLeft size={16} className="mr-1" /> Quay lại
+                  </button>
+                </div>
+              </form>
+            )}
             
-            <p className="mt-6 text-center text-sm text-gray-400">
-              Chưa có tài khoản? Liên hệ quản trị viên.
-            </p>
           </div>
         </div>
       </div>
@@ -277,7 +421,7 @@ const App: React.FC = () => {
   const canApprove = PERMISSIONS[user.role].canApprove;
   const canDelete = PERMISSIONS[user.role].canDelete;
 
-  // Filter columns for HS (hide some fields if needed)
+  // Filter columns for HS
   const formConfig = user.role === Role.HS 
     ? LEAVE_REQUEST_CONFIG.filter(c => !['status', 'studentName', 'class'].includes(c.key))
     : LEAVE_REQUEST_CONFIG;
@@ -321,8 +465,8 @@ const App: React.FC = () => {
 
         <div className="p-4 border-t border-gray-100">
           <div className="flex items-center space-x-3 mb-4 px-2">
-            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold">
-              {user.fullname.charAt(0)}
+            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold uppercase">
+              {user.fullname ? user.fullname.charAt(0) : 'U'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{user.fullname}</p>
@@ -343,7 +487,6 @@ const App: React.FC = () => {
       
       {/* Mobile Sidebar */}
       <aside className={`fixed top-0 left-0 bottom-0 w-64 bg-white z-40 transform transition-transform duration-300 md:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-         {/* Same content as desktop sidebar but simplified */}
          <div className="p-4 flex justify-between items-center border-b">
             <span className="font-bold text-xl">{APP_NAME}</span>
             <button onClick={() => setSidebarOpen(false)}><X size={24} /></button>
@@ -366,7 +509,6 @@ const App: React.FC = () => {
             {activeTab === 'dashboard' ? 'Tổng quan hệ thống' : activeTab === 'requests' ? 'Quản lý đơn xin phép' : 'Cài đặt'}
           </h2>
           <div className="flex items-center space-x-4">
-             {/* Role Badge */}
              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${user.role === Role.ADMIN ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                 {user.role}
              </span>
@@ -379,6 +521,7 @@ const App: React.FC = () => {
           {/* DASHBOARD VIEW */}
           {activeTab === 'dashboard' && (
             <div className="max-w-6xl mx-auto">
+              {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <p className="text-sm text-gray-500 mb-1">Tổng đơn</p>
@@ -397,6 +540,12 @@ const App: React.FC = () => {
                     <p className="text-2xl font-bold text-red-600">{data.filter(i => i.status === Status.REJECTED).length}</p>
                  </div>
               </div>
+
+              {user.role === Role.VIEWER && (
+                <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-lg">
+                  Tài khoản của bạn đang ở chế độ <b>Viewer</b> (chỉ xem). Vui lòng liên hệ Admin để được cấp quyền tạo đơn hoặc duyệt đơn.
+                </div>
+              )}
 
               <DashboardChart data={data} />
             </div>
@@ -502,7 +651,6 @@ const App: React.FC = () => {
                                       <Trash2 size={18} />
                                     </button>
                                   )}
-                                  {/* Allow update if user created it and it's pending */}
                                   {user.username === item.createdBy && item.status === Status.PENDING && (
                                      <button 
                                       onClick={() => { setEditingItem(item); setIsModalOpen(true); }}
@@ -524,35 +672,13 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* SETTINGS VIEW (Simplified) */}
+          {/* SETTINGS VIEW */}
           {activeTab === 'settings' && (
             <div className="max-w-4xl mx-auto">
                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                  <h3 className="text-lg font-bold mb-4">Cấu hình form nhập liệu</h3>
+                  <h3 className="text-lg font-bold mb-4">Cấu hình hệ thống</h3>
                   <div className="bg-blue-50 text-blue-800 p-4 rounded-lg mb-4 text-sm">
-                    Dữ liệu cấu hình này được lấy trực tiếp từ Google Sheet "Cài đặt". Admin có thể thay đổi trên Sheet để cập nhật form mà không cần sửa code.
-                  </div>
-                  <div className="overflow-x-auto border rounded-lg">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b">
-                        <tr>
-                          <th className="px-4 py-2 text-left">Tên trường (Key)</th>
-                          <th className="px-4 py-2 text-left">Nhãn (Label)</th>
-                          <th className="px-4 py-2 text-left">Loại</th>
-                          <th className="px-4 py-2 text-center">Bắt buộc</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {LEAVE_REQUEST_CONFIG.map(col => (
-                          <tr key={col.key} className="border-b">
-                            <td className="px-4 py-2 font-mono text-xs">{col.key}</td>
-                            <td className="px-4 py-2">{col.label}</td>
-                            <td className="px-4 py-2 capitalize">{col.type}</td>
-                            <td className="px-4 py-2 text-center">{col.required ? '✅' : ''}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    Để chỉnh sửa chi tiết các trường dữ liệu, vui lòng truy cập trực tiếp Google Sheet "Config".
                   </div>
                </div>
             </div>
