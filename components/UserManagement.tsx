@@ -39,10 +39,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
     if (!confirm('Bạn có chắc chắn muốn xóa thành viên này?')) return;
     try {
       setLoading(true);
-      await gasService.deleteUser(id);
+      const res = await gasService.deleteUser(id);
+      if (!res.success) throw new Error(res.message);
       onRefresh();
-    } catch (e) {
-      alert('Xóa thất bại');
+    } catch (e: any) {
+      alert('Xóa thất bại: ' + (e.message || 'Lỗi hệ thống'));
     } finally {
       setLoading(false);
     }
@@ -59,9 +60,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
         payload.password = password;
       }
 
+      let res;
       if (editingUser.id) {
         // Update existing
-        await gasService.updateUser(editingUser.id, payload);
+        res = await gasService.updateUser(editingUser.id, payload);
       } else {
         // Create new
         if (!password) {
@@ -69,13 +71,19 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
             setLoading(false);
             return;
         }
-        await gasService.createUser(payload);
+        res = await gasService.createUser(payload);
       }
+
+      // Explicitly check for API success flag
+      if (!res.success) {
+        throw new Error(res.message || 'Có lỗi xảy ra khi lưu dữ liệu');
+      }
+
       setIsModalOpen(false);
       onRefresh();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Lưu thất bại. Vui lòng kiểm tra lại thông tin.');
+      alert('Lưu thất bại: ' + (e.message || 'Vui lòng kiểm tra lại thông tin.'));
     } finally {
       setLoading(false);
     }
