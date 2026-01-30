@@ -273,8 +273,12 @@ const App: React.FC = () => {
   // --- Filter Logic (HOOK) ---
   const filteredData = useMemo(() => {
     return data.filter(item => {
-      const matchesSearch = item.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            item.id.toLowerCase().includes(searchTerm.toLowerCase());
+      // FIX: Add safety checks (|| '') to prevent crash on undefined properties
+      const sName = item.studentName || '';
+      const sId = item.id || '';
+      
+      const matchesSearch = sName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            sId.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesClass = filterClass ? item.class === filterClass : true;
       const matchesStatus = filterStatus ? item.status === filterStatus : true;
       const permissionCheck = user?.role === Role.HS ? item.createdBy === user.username : true;
