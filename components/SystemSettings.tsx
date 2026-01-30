@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SystemConfigData } from '../types';
 import { Save } from 'lucide-react';
 import { gasService } from '../services/gasService';
@@ -9,23 +9,33 @@ interface SystemSettingsProps {
 }
 
 export const SystemSettings: React.FC<SystemSettingsProps> = ({ config, onRefresh }) => {
-  const [localConfig, setLocalConfig] = useState<SystemConfigData>(config);
+  // Use local string state for textareas to allow free typing (including trailing commas)
+  const [schoolName, setSchoolName] = useState(config.schoolName || '');
+  const [classesStr, setClassesStr] = useState(config.classes?.join(', ') || '');
+  const [reasonsStr, setReasonsStr] = useState(config.reasons?.join(', ') || '');
   const [loading, setLoading] = useState(false);
 
-  const handleArrayChange = (key: string, valueStr: string) => {
-    // Split by comma and trim
-    const arr = valueStr.split(',').map(s => s.trim()).filter(s => s !== '');
-    setLocalConfig(prev => ({ ...prev, [key]: arr }));
-  };
-
-  const handleTextChange = (key: string, value: string) => {
-    setLocalConfig(prev => ({ ...prev, [key]: value }));
-  };
+  // Sync with prop changes (e.g. after refresh)
+  useEffect(() => {
+    setSchoolName(config.schoolName || '');
+    setClassesStr(config.classes?.join(', ') || '');
+    setReasonsStr(config.reasons?.join(', ') || '');
+  }, [config]);
 
   const handleSave = async () => {
     setLoading(true);
     try {
-      await gasService.saveSystemConfig(localConfig);
+      // Parse strings back to arrays
+      const classes = classesStr.split(',').map(s => s.trim()).filter(s => s !== '');
+      const reasons = reasonsStr.split(',').map(s => s.trim()).filter(s => s !== '');
+
+      const newConfig: SystemConfigData = {
+        schoolName,
+        classes,
+        reasons
+      };
+
+      await gasService.saveSystemConfig(newConfig);
       alert('Đã lưu cấu hình thành công!');
       onRefresh();
     } catch (e) {
@@ -54,8 +64,8 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ config, onRefres
           <input 
             type="text" 
             className="w-full border rounded-lg px-3 py-2 outline-none focus:border-primary"
-            value={localConfig.schoolName || ''}
-            onChange={e => handleTextChange('schoolName', e.target.value)}
+            value={schoolName}
+            onChange={e => setSchoolName(e.target.value)}
           />
         </div>
 
@@ -66,8 +76,9 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ config, onRefres
           <textarea 
             rows={3}
             className="w-full border rounded-lg px-3 py-2 outline-none focus:border-primary"
-            value={localConfig.classes?.join(', ') || ''}
-            onChange={e => handleArrayChange('classes', e.target.value)}
+            value={classesStr}
+            onChange={e => setClassesStr(e.target.value)}
+            placeholder="Ví dụ: 10A1, 10A2, 10A3..."
           />
         </div>
 
@@ -78,8 +89,9 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ config, onRefres
           <textarea 
              rows={3}
              className="w-full border rounded-lg px-3 py-2 outline-none focus:border-primary"
-             value={localConfig.reasons?.join(', ') || ''}
-             onChange={e => handleArrayChange('reasons', e.target.value)}
+             value={reasonsStr}
+             onChange={e => setReasonsStr(e.target.value)}
+             placeholder="Ví dụ: Ốm đau, Việc riêng..."
            />
         </div>
       </div>
