@@ -16,7 +16,7 @@ export enum Status {
 export interface ColumnConfig {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'date' | 'email' | 'select' | 'multiselect' | 'file' | 'textarea';
+  type: 'text' | 'number' | 'date' | 'email' | 'select' | 'multiselect' | 'file' | 'textarea' | 'password';
   required?: boolean;
   options?: string[]; // For static dropdowns
   refSheet?: string; // For reference dropdowns
@@ -35,6 +35,7 @@ export interface User {
   id: string;
   username: string;
   fullname: string;
+  email?: string;
   role: Role;
   class?: string; // For Students
 }
