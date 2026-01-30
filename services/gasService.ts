@@ -3,7 +3,7 @@ import { User, Role, LeaveRequest, Status, ApiResponse, DashboardStats, SystemCo
 // --- CONFIGURATION ---
 // QUAN TRỌNG: Thay thế URL này bằng Web App URL của bạn sau khi deploy GAS
 // URL có dạng: https://script.google.com/macros/s/AKfycbx.../exec
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzOxcuDsH2Yv2tN6SuKwfxZN-KtWT3B72X7BrhbBd-ZdsfxBIIEaxUvjHid27PVuWD5/exec"; // <-- THAY URL CỦA BẠN VÀO ĐÂY
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxzZGX6G6LASRT_kudGvRO69iVyZ81bfr0WDXcA0G5GKjHXngkCu-GMwnhdO26stHoE/exec"; // <-- THAY URL CỦA BẠN VÀO ĐÂY
 
 // --- HELPER: DETECT ENVIRONMENT ---
 // Check if we are running inside Google Apps Script iFrame
