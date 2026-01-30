@@ -261,7 +261,7 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Filter Logic ---
+  // --- Filter Logic (HOOK) ---
   const filteredData = useMemo(() => {
     return data.filter(item => {
       const matchesSearch = item.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -274,8 +274,34 @@ const App: React.FC = () => {
     });
   }, [data, searchTerm, filterClass, filterStatus, user]);
 
+  // --- Form Config Logic (HOOK MOVED UP) ---
+  // Must be called unconditionally before any return statements
+  const formConfig = useMemo(() => {
+    let baseConfig = LEAVE_REQUEST_CONFIG;
+    
+    // Inject dynamic classes
+    if (systemConfig.classes.length > 0) {
+      baseConfig = baseConfig.map(col => 
+        col.key === 'class' ? { ...col, options: systemConfig.classes } : col
+      );
+    }
+    // Inject dynamic reasons
+    if (systemConfig.reasons.length > 0) {
+      baseConfig = baseConfig.map(col => 
+        col.key === 'reason' ? { ...col, options: systemConfig.reasons } : col
+      );
+    }
+
+    // Check user role safely
+    if (user && user.role === Role.HS) {
+      return baseConfig.filter(c => !['status', 'studentName', 'class'].includes(c.key));
+    }
+    return baseConfig;
+  }, [systemConfig, user]);
+
 
   // --- Render Login / Auth ---
+  // CONDITIONAL RETURN IS NOW SAFE (Hooks are above)
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -428,29 +454,6 @@ const App: React.FC = () => {
   const canCreate = user.role === Role.HS || user.role === Role.ADMIN || user.role === Role.USER;
   const canApprove = PERMISSIONS[user.role].canApprove;
   const canDelete = PERMISSIONS[user.role].canDelete;
-
-  // Combine static config with dynamic options from System Config
-  const formConfig = useMemo(() => {
-    let baseConfig = LEAVE_REQUEST_CONFIG;
-    
-    // Inject dynamic classes
-    if (systemConfig.classes.length > 0) {
-      baseConfig = baseConfig.map(col => 
-        col.key === 'class' ? { ...col, options: systemConfig.classes } : col
-      );
-    }
-    // Inject dynamic reasons
-    if (systemConfig.reasons.length > 0) {
-      baseConfig = baseConfig.map(col => 
-        col.key === 'reason' ? { ...col, options: systemConfig.reasons } : col
-      );
-    }
-
-    if (user.role === Role.HS) {
-      return baseConfig.filter(c => !['status', 'studentName', 'class'].includes(c.key));
-    }
-    return baseConfig;
-  }, [systemConfig, user.role]);
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden font-sans">
