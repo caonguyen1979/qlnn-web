@@ -22,7 +22,8 @@ import {
   Mail,
   Lock,
   User as UserIcon,
-  ArrowLeft
+  ArrowLeft,
+  ShieldAlert
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
@@ -88,6 +89,13 @@ const App: React.FC = () => {
     };
     init();
   }, []);
+
+  // Ensure non-admins are redirected from settings if they somehow get there
+  useEffect(() => {
+    if (user && user.role !== Role.ADMIN && activeTab === 'settings') {
+      setActiveTab('dashboard');
+    }
+  }, [user, activeTab]);
 
   const loadData = async () => {
     const result = await gasService.loadAllConfigData();
@@ -175,6 +183,7 @@ const App: React.FC = () => {
     setData([]);
     setUsername('');
     setPassword('');
+    setActiveTab('dashboard'); // Reset tab on logout
   };
 
   // --- CRUD & Optimistic UI ---
@@ -275,24 +284,20 @@ const App: React.FC = () => {
   }, [data, searchTerm, filterClass, filterStatus, user]);
 
   // --- Form Config Logic (HOOK MOVED UP) ---
-  // Must be called unconditionally before any return statements
   const formConfig = useMemo(() => {
     let baseConfig = LEAVE_REQUEST_CONFIG;
     
-    // Inject dynamic classes
     if (systemConfig.classes.length > 0) {
       baseConfig = baseConfig.map(col => 
         col.key === 'class' ? { ...col, options: systemConfig.classes } : col
       );
     }
-    // Inject dynamic reasons
     if (systemConfig.reasons.length > 0) {
       baseConfig = baseConfig.map(col => 
         col.key === 'reason' ? { ...col, options: systemConfig.reasons } : col
       );
     }
 
-    // Check user role safely
     if (user && user.role === Role.HS) {
       return baseConfig.filter(c => !['status', 'studentName', 'class'].includes(c.key));
     }
@@ -301,7 +306,6 @@ const App: React.FC = () => {
 
 
   // --- Render Login / Auth ---
-  // CONDITIONAL RETURN IS NOW SAFE (Hooks are above)
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -571,8 +575,9 @@ const App: React.FC = () => {
               </div>
 
               {user.role === Role.VIEWER && (
-                <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-lg">
-                  Tài khoản của bạn đang ở chế độ <b>Viewer</b> (chỉ xem). Vui lòng liên hệ Admin để được cấp quyền tạo đơn hoặc duyệt đơn.
+                <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-lg flex items-center">
+                  <ShieldAlert className="w-5 h-5 mr-2" />
+                  <span>Tài khoản của bạn đang ở chế độ <b>Viewer</b> (chỉ xem). Vui lòng liên hệ Admin để được cấp quyền tạo đơn hoặc duyệt đơn.</span>
                 </div>
               )}
 
@@ -701,11 +706,18 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* SETTINGS VIEW */}
-          {activeTab === 'settings' && (
+          {/* SETTINGS VIEW - SECURED */}
+          {activeTab === 'settings' && user.role === Role.ADMIN && (
             <div className="max-w-4xl mx-auto space-y-8">
               <UserManagement users={allUsers} onRefresh={loadData} classes={systemConfig.classes} />
               <SystemSettings config={systemConfig} onRefresh={loadData} />
+            </div>
+          )}
+          
+          {activeTab === 'settings' && user.role !== Role.ADMIN && (
+            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+               <ShieldAlert size={48} className="mb-2 text-red-400" />
+               <p>Bạn không có quyền truy cập khu vực này.</p>
             </div>
           )}
 
