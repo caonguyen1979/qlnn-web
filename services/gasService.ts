@@ -1,9 +1,9 @@
-import { User, Role, LeaveRequest, Status, ApiResponse, DashboardStats } from '../types';
+import { User, Role, LeaveRequest, Status, ApiResponse, DashboardStats, SystemConfigData } from '../types';
 
 // --- CONFIGURATION ---
 // QUAN TRỌNG: Thay thế URL này bằng Web App URL của bạn sau khi deploy GAS
 // URL có dạng: https://script.google.com/macros/s/AKfycbx.../exec
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyhCqZHsz03N2xC34usUUTSjccG5PWdcycp0Tqm8eVKKAm2DzR-dCuW13zAGCTwRx0W/exec"; // <-- THAY URL CỦA BẠN VÀO ĐÂY
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyvj5mG2y9_Ym6_Zz5XqXqXqXqXq/exec"; // <-- THAY URL CỦA BẠN VÀO ĐÂY
 
 // --- HELPER: DETECT ENVIRONMENT ---
 // Check if we are running inside Google Apps Script iFrame
@@ -45,7 +45,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const gasService = {
   // 1. System Config & Initialization
-  loadAllConfigData: async (): Promise<{ users: User[], requests: LeaveRequest[] }> => {
+  loadAllConfigData: async (): Promise<{ users: User[], requests: LeaveRequest[], config: SystemConfigData }> => {
     try {
       return await serverCall('api_loadAllConfigData');
     } catch (e) {
@@ -53,9 +53,14 @@ export const gasService = {
       await delay(800);
       return { 
         users: [], 
-        requests: [] 
+        requests: [],
+        config: { classes: [], reasons: [], schoolName: "Trường Mẫu" }
       };
     }
+  },
+
+  saveSystemConfig: async (config: SystemConfigData): Promise<ApiResponse<void>> => {
+    return await serverCall('api_saveSystemConfig', config);
   },
 
   // 2. Auth
@@ -71,7 +76,20 @@ export const gasService = {
     return await serverCall('api_resetPassword', email);
   },
 
-  // 3. CRUD Operations
+  // 3. User Management
+  createUser: async (data: Partial<User>): Promise<ApiResponse<User>> => {
+    return await serverCall('api_createUser', data);
+  },
+
+  updateUser: async (id: string, updates: Partial<User>): Promise<ApiResponse<User>> => {
+    return await serverCall('api_updateUser', id, updates);
+  },
+
+  deleteUser: async (id: string): Promise<ApiResponse<string>> => {
+    return await serverCall('api_deleteUser', id);
+  },
+
+  // 4. Request CRUD Operations
   createRequest: async (data: Partial<LeaveRequest>, user: User): Promise<ApiResponse<LeaveRequest>> => {
     // We pass user info to backend to verify creator
     return await serverCall('api_createRequest', data, JSON.stringify(user));
@@ -85,7 +103,7 @@ export const gasService = {
     return await serverCall('api_deleteRequest', id);
   },
 
-  // 4. File Upload (Handling Base64 for GAS)
+  // 5. File Upload (Handling Base64 for GAS)
   uploadFile: async (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -102,7 +120,7 @@ export const gasService = {
     });
   },
 
-  // 5. Reporting
+  // 6. Reporting
   getStats: async (): Promise<DashboardStats> => {
     return {
       total: 0,
