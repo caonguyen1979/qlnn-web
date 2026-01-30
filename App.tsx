@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Role, LeaveRequest, Status } from './types';
+import { User, Role, LeaveRequest, Status, SystemConfigData } from './types';
 import { gasService } from './services/gasService';
 import { LEAVE_REQUEST_CONFIG, APP_NAME, PERMISSIONS } from './constants';
 import { DynamicForm } from './components/DynamicForm';
 import { DashboardChart } from './components/DashboardChart';
+import { UserManagement } from './components/UserManagement';
+import { SystemSettings } from './components/SystemSettings';
 import { 
   LogOut, 
   LayoutDashboard, 
@@ -34,6 +36,8 @@ const App: React.FC = () => {
   // App State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'settings'>('dashboard');
   const [data, setData] = useState<LeaveRequest[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]); // For Admin
+  const [systemConfig, setSystemConfig] = useState<SystemConfigData>({ classes: [], reasons: [], schoolName: APP_NAME });
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Auth State
@@ -88,6 +92,10 @@ const App: React.FC = () => {
   const loadData = async () => {
     const result = await gasService.loadAllConfigData();
     setData(result.requests);
+    setAllUsers(result.users);
+    if (result.config) {
+      setSystemConfig(prev => ({ ...prev, ...result.config }));
+    }
   };
 
   // --- Auth Handlers ---
@@ -276,7 +284,7 @@ const App: React.FC = () => {
           <div className="hidden md:flex md:w-1/2 bg-primary p-12 flex-col justify-center text-white relative">
             <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
             <div className="relative z-10">
-              <h1 className="text-4xl font-bold mb-4">{APP_NAME}</h1>
+              <h1 className="text-4xl font-bold mb-4">{systemConfig.schoolName}</h1>
               <p className="text-lg opacity-90">Hệ thống quản lý nghỉ phép học sinh thông minh.</p>
             </div>
           </div>
@@ -421,10 +429,28 @@ const App: React.FC = () => {
   const canApprove = PERMISSIONS[user.role].canApprove;
   const canDelete = PERMISSIONS[user.role].canDelete;
 
-  // Filter columns for HS
-  const formConfig = user.role === Role.HS 
-    ? LEAVE_REQUEST_CONFIG.filter(c => !['status', 'studentName', 'class'].includes(c.key))
-    : LEAVE_REQUEST_CONFIG;
+  // Combine static config with dynamic options from System Config
+  const formConfig = useMemo(() => {
+    let baseConfig = LEAVE_REQUEST_CONFIG;
+    
+    // Inject dynamic classes
+    if (systemConfig.classes.length > 0) {
+      baseConfig = baseConfig.map(col => 
+        col.key === 'class' ? { ...col, options: systemConfig.classes } : col
+      );
+    }
+    // Inject dynamic reasons
+    if (systemConfig.reasons.length > 0) {
+      baseConfig = baseConfig.map(col => 
+        col.key === 'reason' ? { ...col, options: systemConfig.reasons } : col
+      );
+    }
+
+    if (user.role === Role.HS) {
+      return baseConfig.filter(c => !['status', 'studentName', 'class'].includes(c.key));
+    }
+    return baseConfig;
+  }, [systemConfig, user.role]);
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden font-sans">
@@ -432,7 +458,7 @@ const App: React.FC = () => {
       <aside className={`hidden md:flex flex-col w-64 bg-white border-r border-gray-200 transition-all z-20`}>
         <div className="h-16 flex items-center px-6 border-b border-gray-100">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold mr-3">E</div>
-          <span className="text-xl font-bold text-gray-800">{APP_NAME}</span>
+          <span className="text-xl font-bold text-gray-800">{systemConfig.schoolName}</span>
         </div>
         
         <nav className="flex-1 p-4 space-y-1">
@@ -488,7 +514,7 @@ const App: React.FC = () => {
       {/* Mobile Sidebar */}
       <aside className={`fixed top-0 left-0 bottom-0 w-64 bg-white z-40 transform transition-transform duration-300 md:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
          <div className="p-4 flex justify-between items-center border-b">
-            <span className="font-bold text-xl">{APP_NAME}</span>
+            <span className="font-bold text-xl">{systemConfig.schoolName}</span>
             <button onClick={() => setSidebarOpen(false)}><X size={24} /></button>
          </div>
          <nav className="p-4 space-y-2">
@@ -674,13 +700,9 @@ const App: React.FC = () => {
 
           {/* SETTINGS VIEW */}
           {activeTab === 'settings' && (
-            <div className="max-w-4xl mx-auto">
-               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                  <h3 className="text-lg font-bold mb-4">Cấu hình hệ thống</h3>
-                  <div className="bg-blue-50 text-blue-800 p-4 rounded-lg mb-4 text-sm">
-                    Để chỉnh sửa chi tiết các trường dữ liệu, vui lòng truy cập trực tiếp Google Sheet "Config".
-                  </div>
-               </div>
+            <div className="max-w-4xl mx-auto space-y-8">
+              <UserManagement users={allUsers} onRefresh={loadData} classes={systemConfig.classes} />
+              <SystemSettings config={systemConfig} onRefresh={loadData} />
             </div>
           )}
 
