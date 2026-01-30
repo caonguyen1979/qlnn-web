@@ -11,18 +11,26 @@ interface UserManagementProps {
 
 export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh, classes }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<Partial<User> | null>(null);
+  // Initialize with a cleaner type structure
+  const [editingUser, setEditingUser] = useState<Partial<User>>({});
   const [loading, setLoading] = useState(false);
-  const [password, setPassword] = useState(''); // Seperate state for password handling
+  const [password, setPassword] = useState(''); 
 
   const handleEdit = (user: User) => {
     setEditingUser(user);
-    setPassword(''); // Reset password field, optional for update
+    setPassword(''); 
     setIsModalOpen(true);
   };
 
   const handleCreate = () => {
-    setEditingUser({ role: Role.VIEWER, class: '' });
+    // Explicitly set default values for creating
+    setEditingUser({ 
+      username: '',
+      fullname: '',
+      email: '',
+      role: Role.VIEWER, 
+      class: '' 
+    });
     setPassword('');
     setIsModalOpen(true);
   };
@@ -45,13 +53,17 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
     setLoading(true);
     try {
       const payload = { ...editingUser };
-      if (password) payload.password = password;
+      
+      // Attach password from separate state
+      if (password) {
+        payload.password = password;
+      }
 
-      if (editingUser?.id) {
-        // Update
+      if (editingUser.id) {
+        // Update existing
         await gasService.updateUser(editingUser.id, payload);
       } else {
-        // Create
+        // Create new
         if (!password) {
             alert("Mật khẩu là bắt buộc cho tài khoản mới");
             setLoading(false);
@@ -62,7 +74,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
       setIsModalOpen(false);
       onRefresh();
     } catch (e) {
-      alert('Lưu thất bại: ' + e);
+      console.error(e);
+      alert('Lưu thất bại. Vui lòng kiểm tra lại thông tin.');
     } finally {
       setLoading(false);
     }
@@ -118,7 +131,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
         </table>
       </div>
 
-      {isModalOpen && editingUser && (
+      {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-4 border-b flex justify-between items-center">
@@ -133,7 +146,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
                   disabled={!!editingUser.id}
                   className="w-full border rounded-lg px-3 py-2 outline-none focus:border-primary disabled:bg-gray-100"
                   value={editingUser.username || ''}
-                  onChange={e => setEditingUser({...editingUser, username: e.target.value})}
+                  onChange={e => setEditingUser(prev => ({...prev, username: e.target.value}))}
                 />
               </div>
               <div>
@@ -152,7 +165,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
                   type="text" required 
                   className="w-full border rounded-lg px-3 py-2 outline-none focus:border-primary"
                   value={editingUser.fullname || ''}
-                  onChange={e => setEditingUser({...editingUser, fullname: e.target.value})}
+                  onChange={e => setEditingUser(prev => ({...prev, fullname: e.target.value}))}
                 />
               </div>
               <div>
@@ -161,7 +174,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
                   type="email" 
                   className="w-full border rounded-lg px-3 py-2 outline-none focus:border-primary"
                   value={editingUser.email || ''}
-                  onChange={e => setEditingUser({...editingUser, email: e.target.value})}
+                  onChange={e => setEditingUser(prev => ({...prev, email: e.target.value}))}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -169,8 +182,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
                   <label className="block text-sm font-medium mb-1">Quyền hạn</label>
                   <select 
                     className="w-full border rounded-lg px-3 py-2 outline-none focus:border-primary"
-                    value={editingUser.role}
-                    onChange={e => setEditingUser({...editingUser, role: e.target.value as Role})}
+                    value={editingUser.role || Role.VIEWER}
+                    onChange={e => setEditingUser(prev => ({...prev, role: e.target.value as Role}))}
                   >
                     {Object.values(Role).map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
@@ -180,7 +193,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
                     <select
                         className="w-full border rounded-lg px-3 py-2 outline-none focus:border-primary"
                         value={editingUser.class || ''}
-                        onChange={e => setEditingUser({...editingUser, class: e.target.value})}
+                        onChange={e => setEditingUser(prev => ({...prev, class: e.target.value}))}
                     >
                         <option value="">-- Chọn --</option>
                         {classes.map(c => <option key={c} value={c}>{c}</option>)}
