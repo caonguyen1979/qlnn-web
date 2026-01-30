@@ -27,7 +27,7 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({ data }) => {
       {/* Status Chart */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Thống kê theo trạng thái</h3>
-        <div className="h-64">
+        <div className="h-64 min-h-[250px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -53,7 +53,7 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({ data }) => {
       {/* Class Chart */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Thống kê theo lớp</h3>
-        <div className="h-64">
+        <div className="h-64 min-h-[250px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={classData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
