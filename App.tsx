@@ -261,12 +261,18 @@ const App: React.FC = () => {
 
   const handleStatusChange = async (id: string, newStatus: Status) => {
     const previousData = [...data];
+    // Optimistically update status
     setData(prev => prev.map(item => item.id === id ? { ...item, status: newStatus } : item));
 
     try {
-      await gasService.updateRequest(id, { status: newStatus });
+      // Pass approver as part of updates
+      await gasService.updateRequest(id, { 
+        status: newStatus,
+        approver: user?.username 
+      });
     } catch (err) {
       setData(previousData);
+      alert("Lỗi khi cập nhật trạng thái");
     }
   };
 
