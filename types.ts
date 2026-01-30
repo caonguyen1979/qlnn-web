@@ -38,6 +38,7 @@ export interface User {
   email?: string;
   role: Role;
   class?: string; // For Students
+  password?: string; // Optional for UI, handled in backend
 }
 
 export interface LeaveRequest {
@@ -52,6 +53,13 @@ export interface LeaveRequest {
   createdAt: string;
   attachmentUrl?: string;
   [key: string]: any; // Allow dynamic fields based on config
+}
+
+export interface SystemConfigData {
+  classes: string[];
+  reasons: string[];
+  schoolName: string;
+  [key: string]: any;
 }
 
 // API Response Wrappers
