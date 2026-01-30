@@ -51,6 +51,7 @@ export interface LeaveRequest {
   status: Status;
   createdBy: string;
   createdAt: string;
+  approver?: string; // Added approver field
   attachmentUrl?: string;
   [key: string]: any; // Allow dynamic fields based on config
 }
