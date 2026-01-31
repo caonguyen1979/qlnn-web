@@ -88,6 +88,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({ config, initialData = 
                   value={formData[col.key] || ''}
                   onChange={(e) => handleChange(col.key, e.target.value)}
                   required={col.required}
+                  min={col.min} // Applied min attribute
                 />
               )}
             </div>
