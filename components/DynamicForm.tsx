@@ -25,8 +25,8 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({ config, initialData = 
       try {
         const url = await gasService.uploadFile(e.target.files[0]);
         handleChange(key, url);
-      } catch (error) {
-        alert("Upload failed");
+      } catch (error: any) {
+        alert(error.message || "Upload failed");
       } finally {
         setUploading(false);
       }
@@ -72,12 +72,13 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({ config, initialData = 
                 <div className="flex items-center space-x-2">
                   <label className="cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center">
                     <Upload className="w-4 h-4 mr-2" />
-                    {uploading ? "Đang tải lên..." : "Chọn tệp"}
-                    <input type="file" className="hidden" onChange={(e) => handleFileUpload(e, col.key)} disabled={uploading} />
+                    {uploading ? "Đang tải lên..." : "Chọn ảnh (jpg, png < 3MB)"}
+                    <input type="file" className="hidden" accept=".jpg,.jpeg,.png" onChange={(e) => handleFileUpload(e, col.key)} disabled={uploading} />
                   </label>
                   {formData[col.key] && (
-                    <span className="text-sm text-green-600 truncate max-w-xs">
-                      Đã tải lên
+                    <span className="text-sm text-green-600 truncate max-w-xs flex items-center">
+                      <a href={formData[col.key]} target="_blank" rel="noreferrer" className="underline mr-2">Đã tải lên</a>
+                      <button type="button" onClick={() => handleChange(col.key, '')} className="text-red-500"><X size={14}/></button>
                     </span>
                   )}
                 </div>
