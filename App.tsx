@@ -408,6 +408,11 @@ const App: React.FC = () => {
           {/* Right: Forms */}
           <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
             
+            {/* ADDED: Logo Centered */}
+            <div className="flex justify-center mb-6">
+              <img src="./logo.png" alt="Logo" className="w-24 h-24 object-contain" />
+            </div>
+
             {/* Header Text */}
             <div className="text-center md:text-left mb-6">
               {authMode === 'login' && (
