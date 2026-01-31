@@ -197,6 +197,24 @@ const App: React.FC = () => {
   // --- CRUD & Optimistic UI ---
   const handleCreate = async (formData: any) => {
     if (!user) return;
+    
+    // VALIDATION FOR STUDENTS
+    if (user.role === Role.HS) {
+      const inputWeek = Number(formData.week);
+      const currentWeek = Number(systemConfig.currentWeek);
+      
+      if (inputWeek < currentWeek) {
+        alert(`Bạn không thể xin phép cho tuần ${inputWeek} vì tuần hiện tại là ${currentWeek}.`);
+        return;
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (formData.fromDate < todayStr) {
+        alert(`Ngày bắt đầu nghỉ không được nhỏ hơn ngày hiện tại (${todayStr}).`);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     
     // Optimistic Update
@@ -337,7 +355,24 @@ const App: React.FC = () => {
     }
 
     if (user && user.role === Role.HS) {
-      return baseConfig.filter(c => !['status', 'studentName', 'class'].includes(c.key));
+      // Students should not see status, studentName, or class input (auto-filled)
+      let studentConfig = baseConfig.filter(c => !['status', 'studentName', 'class'].includes(c.key));
+      
+      // Calculate constraints
+      const todayStr = new Date().toISOString().split('T')[0];
+      
+      // Inject constraints into config
+      studentConfig = studentConfig.map(col => {
+        if (col.key === 'week') {
+          return { ...col, min: systemConfig.currentWeek };
+        }
+        if (col.key === 'fromDate') {
+          return { ...col, min: todayStr };
+        }
+        return col;
+      });
+
+      return studentConfig;
     }
     return baseConfig;
   }, [systemConfig, user]);
