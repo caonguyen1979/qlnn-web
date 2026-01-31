@@ -6,6 +6,7 @@ import { DynamicForm } from './components/DynamicForm';
 import { DashboardChart } from './components/DashboardChart';
 import { UserManagement } from './components/UserManagement';
 import { SystemSettings } from './components/SystemSettings';
+import { ImagePreviewModal } from './components/ImagePreviewModal';
 import { 
   LogOut, 
   LayoutDashboard, 
@@ -25,7 +26,8 @@ import {
   ArrowLeft,
   ShieldAlert,
   Calendar,
-  ExternalLink
+  Eye, 
+  ImageIcon
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
@@ -69,6 +71,9 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<LeaveRequest | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Preview Image State
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   // Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -792,15 +797,14 @@ const App: React.FC = () => {
                             <td className="px-6 py-4 truncate max-w-[150px]">{item.reason}</td>
                             <td className="px-6 py-4 text-center">
                               {item.attachmentUrl ? (
-                                <a 
-                                  href={item.attachmentUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
+                                <button 
+                                  onClick={() => setPreviewImageUrl(item.attachmentUrl || '')}
                                   className="inline-flex items-center justify-center p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"
                                   title="Xem minh chứng"
                                 >
-                                  <ExternalLink size={18} />
-                                </a>
+                                  {/* Changed Icon to Eye or Image for better semantic */}
+                                  <Eye size={18} />
+                                </button>
                               ) : (
                                 <span className="text-gray-300">-</span>
                               )}
@@ -903,6 +907,13 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Image Preview Modal */}
+      <ImagePreviewModal 
+        imageUrl={previewImageUrl} 
+        onClose={() => setPreviewImageUrl(null)} 
+      />
+
     </div>
   );
 };
