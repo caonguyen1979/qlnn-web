@@ -24,7 +24,8 @@ import {
   User as UserIcon,
   ArrowLeft,
   ShieldAlert,
-  Calendar
+  Calendar,
+  ExternalLink
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
@@ -771,13 +772,14 @@ const App: React.FC = () => {
                         <th className="px-6 py-3">Lớp</th>
                         <th className="px-6 py-3">Ngày nghỉ</th>
                         <th className="px-6 py-3">Lý do</th>
+                        <th className="px-6 py-3 text-center">Minh chứng</th>
                         <th className="px-6 py-3">Trạng thái</th>
                         {(canApprove || canDelete) && <th className="px-6 py-3 text-center">Hành động</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {filteredData.length === 0 ? (
-                        <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-400">Không có dữ liệu</td></tr>
+                        <tr><td colSpan={8} className="px-6 py-8 text-center text-gray-400">Không có dữ liệu</td></tr>
                       ) : (
                         filteredData.map((item) => (
                           <tr key={item.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
@@ -788,6 +790,21 @@ const App: React.FC = () => {
                               {formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate && ` - ${formatDateDisplay(item.toDate)}`}
                             </td>
                             <td className="px-6 py-4 truncate max-w-[150px]">{item.reason}</td>
+                            <td className="px-6 py-4 text-center">
+                              {item.attachmentUrl ? (
+                                <a 
+                                  href={item.attachmentUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"
+                                  title="Xem minh chứng"
+                                >
+                                  <ExternalLink size={18} />
+                                </a>
+                              ) : (
+                                <span className="text-gray-300">-</span>
+                              )}
+                            </td>
                             <td className="px-6 py-4">
                                 <span className={`px-2 py-1 rounded-full text-xs font-semibold
                                   ${item.status === Status.APPROVED ? 'bg-green-100 text-green-700' : 
