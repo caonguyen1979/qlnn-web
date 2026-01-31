@@ -47,6 +47,17 @@ const handleMockCall = (funcName: string, ...args: any[]): any => {
         requests: MOCK_REQUESTS,
         config: { classes: ['10A1', '10A2', '11A1'], reasons: ['Ốm', 'Việc riêng'], schoolName: 'Trường Demo (Offline)', currentWeek: 1 }
       };
+
+    case 'api_getSystemConfig':
+      return {
+        success: true,
+        data: {
+          classes: ['10A1', '10A2', '11A1'],
+          reasons: ['Ốm', 'Việc riêng'],
+          schoolName: 'Trường Demo (Offline)',
+          currentWeek: 1
+        }
+      };
       
     case 'api_createRequest':
       // Return a fake successful response
@@ -112,6 +123,10 @@ export const gasService = {
   // 1. System Config & Initialization
   loadAllConfigData: async (): Promise<{ users: User[], requests: LeaveRequest[], config: SystemConfigData }> => {
     return await serverCall('api_loadAllConfigData');
+  },
+
+  getSystemConfig: async (): Promise<ApiResponse<SystemConfigData>> => {
+    return await serverCall('api_getSystemConfig');
   },
 
   saveSystemConfig: async (config: SystemConfigData): Promise<ApiResponse<void>> => {
