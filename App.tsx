@@ -73,6 +73,7 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterWeek, setFilterWeek] = useState(''); // Added Week Filter State
 
   // --- Initialization ---
   useEffect(() => {
@@ -346,11 +347,12 @@ const App: React.FC = () => {
                             sId.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesClass = filterClass ? item.class === filterClass : true;
       const matchesStatus = filterStatus ? item.status === filterStatus : true;
+      const matchesWeek = filterWeek ? String(item.week) === String(filterWeek) : true;
       const permissionCheck = user?.role === Role.HS ? item.createdBy === user.username : true;
 
-      return matchesSearch && matchesClass && matchesStatus && permissionCheck;
+      return matchesSearch && matchesClass && matchesStatus && matchesWeek && permissionCheck;
     });
-  }, [data, searchTerm, filterClass, filterStatus, user]);
+  }, [data, searchTerm, filterClass, filterStatus, filterWeek, user]);
 
   // --- Form Config Logic (HOOK MOVED UP) ---
   const formConfig = useMemo(() => {
@@ -713,6 +715,16 @@ const App: React.FC = () => {
                       />
                    </div>
                    
+                   {/* Week Filter */}
+                   <select 
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none bg-white"
+                      value={filterWeek}
+                      onChange={(e) => setFilterWeek(e.target.value)}
+                   >
+                     <option value="">Tất cả tuần</option>
+                     {availableWeeks.map(w => <option key={w} value={w}>Tuần {w}</option>)}
+                   </select>
+
                    {/* Class Filter */}
                    <select 
                       className="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none bg-white"
