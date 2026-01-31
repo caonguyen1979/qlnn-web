@@ -13,6 +13,7 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ config, onRefres
   const [schoolName, setSchoolName] = useState(config.schoolName || '');
   const [classesStr, setClassesStr] = useState(config.classes?.join(', ') || '');
   const [reasonsStr, setReasonsStr] = useState(config.reasons?.join(', ') || '');
+  const [currentWeek, setCurrentWeek] = useState<number>(config.currentWeek || 1);
   const [loading, setLoading] = useState(false);
 
   // Sync with prop changes (e.g. after refresh)
@@ -20,6 +21,7 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ config, onRefres
     setSchoolName(config.schoolName || '');
     setClassesStr(config.classes?.join(', ') || '');
     setReasonsStr(config.reasons?.join(', ') || '');
+    setCurrentWeek(config.currentWeek ? Number(config.currentWeek) : 1);
   }, [config]);
 
   const handleSave = async () => {
@@ -32,7 +34,8 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ config, onRefres
       const newConfig: SystemConfigData = {
         schoolName,
         classes,
-        reasons
+        reasons,
+        currentWeek: Number(currentWeek)
       };
 
       await gasService.saveSystemConfig(newConfig);
@@ -67,6 +70,18 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ config, onRefres
             value={schoolName}
             onChange={e => setSchoolName(e.target.value)}
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Tuần học hiện tại</label>
+          <input 
+            type="number" 
+            min="1"
+            className="w-full md:w-1/3 border rounded-lg px-3 py-2 outline-none focus:border-primary"
+            value={currentWeek}
+            onChange={e => setCurrentWeek(Number(e.target.value))}
+          />
+          <p className="text-xs text-gray-500 mt-1">Tuần học này sẽ được điền mặc định khi tạo đơn mới.</p>
         </div>
 
         <div>
