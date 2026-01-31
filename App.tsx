@@ -27,7 +27,9 @@ import {
   ShieldAlert,
   Calendar,
   Eye, 
-  ImageIcon
+  ImageIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
@@ -79,7 +81,11 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [filterWeek, setFilterWeek] = useState(''); // Added Week Filter State
+  const [filterWeek, setFilterWeek] = useState(''); 
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // --- Initialization ---
   useEffect(() => {
@@ -107,6 +113,11 @@ const App: React.FC = () => {
       setActiveTab('dashboard');
     }
   }, [user, activeTab]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterClass, filterStatus, filterWeek]);
 
   const loadData = async () => {
     const result = await gasService.loadAllConfigData();
@@ -325,7 +336,6 @@ const App: React.FC = () => {
 
   // --- Dashboard Logic (HOOK) ---
   const dashboardData = useMemo(() => {
-    // Filter data by selected dashboard week
     return data.filter(item => {
        const itemWeek = item.week ? Number(item.week) : 0;
        return itemWeek === selectedDashboardWeek;
@@ -342,10 +352,9 @@ const App: React.FC = () => {
   }, [data, systemConfig]);
 
 
-  // --- Filter Logic (HOOK) ---
+  // --- Filter & Pagination Logic (HOOK) ---
   const filteredData = useMemo(() => {
     return data.filter(item => {
-      // FIX: Add safety checks (|| '') to prevent crash on undefined properties
       const sName = item.studentName || '';
       const sId = item.id || '';
       
@@ -360,7 +369,14 @@ const App: React.FC = () => {
     });
   }, [data, searchTerm, filterClass, filterStatus, filterWeek, user]);
 
-  // --- Form Config Logic (HOOK MOVED UP) ---
+  const totalPages = Math.ceil(filteredData.length / pageSize);
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredData.slice(start, start + pageSize);
+  }, [filteredData, currentPage, pageSize]);
+
+
+  // --- Form Config Logic ---
   const formConfig = useMemo(() => {
     let baseConfig = LEAVE_REQUEST_CONFIG;
     
@@ -376,13 +392,9 @@ const App: React.FC = () => {
     }
 
     if (user && user.role === Role.HS) {
-      // Students should not see status, studentName, or class input (auto-filled)
       let studentConfig = baseConfig.filter(c => !['status', 'studentName', 'class'].includes(c.key));
-      
-      // Calculate constraints
       const todayStr = new Date().toISOString().split('T')[0];
       
-      // Inject constraints into config
       studentConfig = studentConfig.map(col => {
         if (col.key === 'week') {
           return { ...col, min: systemConfig.currentWeek };
@@ -408,7 +420,7 @@ const App: React.FC = () => {
           <div className="hidden md:flex md:w-1/2 bg-primary p-12 flex-col justify-center text-white relative">
             <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
             <div className="relative z-10">
-              <h1 className="text-4xl font-bold mb-4">{systemConfig.schoolName}</h1>
+              <h1 className="text-4xl font-bold mb-4">Trường THPT Nguyễn Trãi</h1>
               <p className="text-lg opacity-90">Hệ thống quản lý nghỉ phép học sinh thông minh.</p>
             </div>
           </div>
@@ -416,7 +428,7 @@ const App: React.FC = () => {
           {/* Right: Forms */}
           <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
             
-            {/* ADDED: Logo Centered */}
+            {/* Logo */}
             <div className="flex justify-center mb-6">
               <img src="./logo.png" alt="Logo" className="w-24 h-24 object-contain" />
             </div>
@@ -634,7 +646,7 @@ const App: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6">
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shrink-0">
           <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-600">
             <Menu size={24} />
           </button>
@@ -654,7 +666,6 @@ const App: React.FC = () => {
           {/* DASHBOARD VIEW */}
           {activeTab === 'dashboard' && (
             <div className="max-w-6xl mx-auto">
-              
               {/* Filter Row */}
               <div className="flex justify-between items-center mb-6">
                  <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
@@ -766,27 +777,27 @@ const App: React.FC = () => {
                 )}
               </div>
 
-              {/* Table */}
-              <div className="bg-white rounded-b-xl shadow-sm border border-gray-200 overflow-hidden flex-1">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left text-gray-500">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+              {/* Table Container - Flex grow and scrollable */}
+              <div className="bg-white border-x border-gray-200 flex-1 overflow-hidden flex flex-col">
+                <div className="flex-1 overflow-auto">
+                  <table className="w-full text-sm text-left text-gray-500 relative">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b sticky top-0 z-10">
                       <tr>
-                        <th className="px-6 py-3">Tuần</th>
-                        <th className="px-6 py-3">Học sinh</th>
-                        <th className="px-6 py-3">Lớp</th>
-                        <th className="px-6 py-3">Ngày nghỉ</th>
-                        <th className="px-6 py-3">Lý do</th>
-                        <th className="px-6 py-3 text-center">Minh chứng</th>
-                        <th className="px-6 py-3">Trạng thái</th>
-                        {(canApprove || canDelete) && <th className="px-6 py-3 text-center">Hành động</th>}
+                        <th className="px-6 py-3 bg-gray-50">Tuần</th>
+                        <th className="px-6 py-3 bg-gray-50">Học sinh</th>
+                        <th className="px-6 py-3 bg-gray-50">Lớp</th>
+                        <th className="px-6 py-3 bg-gray-50">Ngày nghỉ</th>
+                        <th className="px-6 py-3 bg-gray-50">Lý do</th>
+                        <th className="px-6 py-3 text-center bg-gray-50">Minh chứng</th>
+                        <th className="px-6 py-3 bg-gray-50">Trạng thái</th>
+                        {(canApprove || canDelete) && <th className="px-6 py-3 text-center bg-gray-50">Hành động</th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredData.length === 0 ? (
+                      {paginatedData.length === 0 ? (
                         <tr><td colSpan={8} className="px-6 py-8 text-center text-gray-400">Không có dữ liệu</td></tr>
                       ) : (
-                        filteredData.map((item) => (
+                        paginatedData.map((item) => (
                           <tr key={item.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
                             <td className="px-6 py-4 text-center font-bold text-gray-400">{item.week || '-'}</td>
                             <td className="px-6 py-4 font-medium text-gray-900">{item.studentName}</td>
@@ -802,7 +813,6 @@ const App: React.FC = () => {
                                   className="inline-flex items-center justify-center p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"
                                   title="Xem minh chứng"
                                 >
-                                  {/* Changed Icon to Eye or Image for better semantic */}
                                   <Eye size={18} />
                                 </button>
                               ) : (
@@ -862,6 +872,48 @@ const App: React.FC = () => {
                   </table>
                 </div>
               </div>
+
+              {/* Pagination Controls */}
+              <div className="bg-white p-4 border-t border-gray-200 rounded-b-xl flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <span>Hiển thị</span>
+                  <select 
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="border border-gray-300 rounded p-1 outline-none focus:border-primary"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                  <span>dòng / trang</span>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600 mr-2">
+                    Trang {currentPage} / {totalPages || 1}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage >= totalPages}
+                    className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              </div>
+
             </div>
           )}
 
