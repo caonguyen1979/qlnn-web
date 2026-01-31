@@ -114,6 +114,19 @@ const App: React.FC = () => {
     }
   };
 
+  // --- Helpers ---
+  // Converts yyyy-mm-dd or ISO string to dd/mm/yyyy for display
+  const formatDateDisplay = (dateString: string) => {
+    if (!dateString) return '';
+    // Handle ISO string or YYYY-MM-DD
+    const datePart = dateString.split('T')[0]; 
+    const parts = datePart.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dateString;
+  };
+
   // --- Auth Handlers ---
   const clearAuthStates = () => {
     setAuthError('');
@@ -742,7 +755,7 @@ const App: React.FC = () => {
                             <td className="px-6 py-4 font-medium text-gray-900">{item.studentName}</td>
                             <td className="px-6 py-4">{item.class}</td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              {item.fromDate} {item.fromDate !== item.toDate && ` - ${item.toDate}`}
+                              {formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate && ` - ${formatDateDisplay(item.toDate)}`}
                             </td>
                             <td className="px-6 py-4 truncate max-w-[150px]">{item.reason}</td>
                             <td className="px-6 py-4">
