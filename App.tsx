@@ -65,6 +65,8 @@ const App: React.FC = () => {
   const [regEmail, setRegEmail] = useState('');
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
+  const [regUserType, setRegUserType] = useState<'HS' | 'OTHER'>('HS');
+  const [regClassInfo, setRegClassInfo] = useState('');
   
   // Forgot Inputs
   const [forgotEmail, setForgotEmail] = useState('');
@@ -178,11 +180,16 @@ const App: React.FC = () => {
     clearAuthStates();
     setAuthLoading(true);
     try {
+      // Determine Role based on selection
+      const assignedRole = regUserType === 'HS' ? Role.HS : Role.VIEWER;
+
       const res = await gasService.register({
         username: regUsername,
         password: regPassword,
         fullname: regFullname,
-        email: regEmail
+        email: regEmail,
+        class: regClassInfo,
+        role: assignedRole
       });
       
       if (res.success) {
@@ -523,7 +530,58 @@ const App: React.FC = () => {
                   <input type="password" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
                     value={regPassword} onChange={e => setRegPassword(e.target.value)} />
                 </div>
-                <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors">
+                
+                {/* NEW FIELD: USER TYPE SELECTION */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Bạn là?</label>
+                  <div className="flex space-x-4">
+                    <button
+                      type="button"
+                      onClick={() => { setRegUserType('HS'); setRegClassInfo(''); }}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${regUserType === 'HS' ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      Học sinh
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setRegUserType('OTHER'); setRegClassInfo(''); }}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${regUserType === 'OTHER' ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      Khác
+                    </button>
+                  </div>
+                </div>
+
+                {/* CONDITIONAL INFO INPUT */}
+                {regUserType === 'HS' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Lớp</label>
+                    <select
+                      className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary"
+                      value={regClassInfo}
+                      onChange={(e) => setRegClassInfo(e.target.value)}
+                      required
+                    >
+                      <option value="">-- Chọn lớp --</option>
+                      {systemConfig.classes.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Thông tin thêm (Không bắt buộc)</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
+                      value={regClassInfo} 
+                      onChange={e => setRegClassInfo(e.target.value)} 
+                      placeholder="Ví dụ: GVCN lớp 10A1, Cha mẹ HS Nguyễn Văn A lớp 12A1..."
+                    />
+                  </div>
+                )}
+
+                <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors mt-2">
                   {authLoading ? 'Đang đăng ký...' : 'Đăng ký'}
                 </button>
                 <div className="text-center text-sm mt-4">
