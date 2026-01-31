@@ -10,7 +10,7 @@ export const LEAVE_REQUEST_CONFIG: ColumnConfig[] = [
   { key: 'detail', label: 'Chi tiết', type: 'textarea', required: false },
   { key: 'fromDate', label: 'Từ ngày', type: 'date', required: true },
   { key: 'toDate', label: 'Đến ngày', type: 'date', required: true },
-  { key: 'attachment', label: 'Minh chứng (Ảnh/File)', type: 'file', required: false },
+  { key: 'attachmentUrl', label: 'Minh chứng (Ảnh/File)', type: 'file', required: false },
   { key: 'status', label: 'Trạng thái', type: 'select', options: ['Chờ duyệt', 'Đã duyệt', 'Từ chối'], required: false, noSave: false }, // Usually managed by system, but listed for Admin
 ];
 
