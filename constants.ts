@@ -14,7 +14,7 @@ export const LEAVE_REQUEST_CONFIG: ColumnConfig[] = [
   { key: 'status', label: 'Trạng thái', type: 'select', options: ['Chờ duyệt', 'Đã duyệt', 'Từ chối'], required: false, noSave: false }, // Usually managed by system, but listed for Admin
 ];
 
-export const APP_NAME = "EduLeave";
+export const APP_NAME = "Trường THPT Nguyễn Trãi";
 
 export const PERMISSIONS = {
   [Role.ADMIN]: { canEdit: true, canDelete: true, canApprove: true, canConfig: true },
