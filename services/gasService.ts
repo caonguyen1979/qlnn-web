@@ -3,7 +3,7 @@ import { User, Role, LeaveRequest, Status, ApiResponse, DashboardStats, SystemCo
 // --- CONFIGURATION ---
 // QUAN TRỌNG: Thay thế URL này bằng Web App URL của bạn sau khi deploy GAS
 // URL có dạng: https://script.google.com/macros/s/AKfycbx.../exec
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxzZGX6G6LASRT_kudGvRO69iVyZ81bfr0WDXcA0G5GKjHXngkCu-GMwnhdO26stHoE/exec"; // <-- THAY URL CỦA BẠN VÀO ĐÂY
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyvj5mG2y9_Ym6_Zz5XqXqXqXqXq/exec"; // <-- THAY URL CỦA BẠN VÀO ĐÂY
 
 // --- HELPER: DETECT ENVIRONMENT ---
 // Check if we are running inside Google Apps Script iFrame
@@ -54,7 +54,7 @@ export const gasService = {
       return { 
         users: [], 
         requests: [],
-        config: { classes: [], reasons: [], schoolName: "Trường Mẫu" }
+        config: { classes: [], reasons: [], schoolName: "Trường Mẫu", currentWeek: 1 }
       };
     }
   },
@@ -105,6 +105,18 @@ export const gasService = {
 
   // 5. File Upload (Handling Base64 for GAS)
   uploadFile: async (file: File): Promise<string> => {
+    // Client-side validation
+    const allowedTypes = ['image/jpeg', 'image/png'];
+    const maxSize = 3 * 1024 * 1024; // 3MB
+
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error("Chỉ chấp nhận file ảnh (.jpg, .png)");
+    }
+
+    if (file.size > maxSize) {
+      throw new Error("Dung lượng file không được quá 3MB");
+    }
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = async (e) => {
