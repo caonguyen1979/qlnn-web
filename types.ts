@@ -23,6 +23,7 @@ export interface ColumnConfig {
   hidden?: boolean;
   noSave?: boolean;
   width?: string;
+  defaultValue?: any;
 }
 
 export interface SheetConfig {
@@ -45,13 +46,14 @@ export interface LeaveRequest {
   id: string;
   studentName: string;
   class: string;
+  week: number; // Added week field
   reason: string;
   fromDate: string;
   toDate: string;
   status: Status;
   createdBy: string;
   createdAt: string;
-  approver?: string; // Added approver field
+  approver?: string; 
   attachmentUrl?: string;
   [key: string]: any; // Allow dynamic fields based on config
 }
@@ -60,6 +62,7 @@ export interface SystemConfigData {
   classes: string[];
   reasons: string[];
   schoolName: string;
+  currentWeek: number; // Added currentWeek setting
   [key: string]: any;
 }
 
