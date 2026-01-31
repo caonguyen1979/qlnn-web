@@ -550,7 +550,7 @@ const App: React.FC = () => {
       {/* Sidebar - Desktop */}
       <aside className={`hidden md:flex flex-col w-64 bg-white border-r border-gray-200 transition-all z-20`}>
         <div className="h-16 flex items-center px-6 border-b border-gray-100">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold mr-3">E</div>
+          <img src="./logo.png" alt="Logo" className="w-10 h-10 object-contain mr-3" />
           <span className="text-xl font-bold text-gray-800">{systemConfig.schoolName}</span>
         </div>
         
@@ -606,8 +606,9 @@ const App: React.FC = () => {
       
       {/* Mobile Sidebar */}
       <aside className={`fixed top-0 left-0 bottom-0 w-64 bg-white z-40 transform transition-transform duration-300 md:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-         <div className="p-4 flex justify-between items-center border-b">
-            <span className="font-bold text-xl">{systemConfig.schoolName}</span>
+         <div className="p-4 flex items-center border-b space-x-2">
+            <img src="./logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+            <span className="font-bold text-xl flex-1">{systemConfig.schoolName}</span>
             <button onClick={() => setSidebarOpen(false)}><X size={24} /></button>
          </div>
          <nav className="p-4 space-y-2">
@@ -706,6 +707,18 @@ const App: React.FC = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
                    </div>
+                   
+                   {/* Class Filter */}
+                   <select 
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none bg-white"
+                      value={filterClass}
+                      onChange={(e) => setFilterClass(e.target.value)}
+                   >
+                     <option value="">Tất cả lớp</option>
+                     {systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}
+                   </select>
+
+                   {/* Status Filter */}
                    <select 
                     className="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none bg-white"
                     value={filterStatus}
