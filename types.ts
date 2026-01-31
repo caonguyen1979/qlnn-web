@@ -24,6 +24,7 @@ export interface ColumnConfig {
   noSave?: boolean;
   width?: string;
   defaultValue?: any;
+  min?: string | number; // Added min property for validation
 }
 
 export interface SheetConfig {
