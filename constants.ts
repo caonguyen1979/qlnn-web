@@ -3,6 +3,7 @@ import { ColumnConfig, Role } from "./types";
 // Simulate the "Settings" sheet configuration
 export const LEAVE_REQUEST_CONFIG: ColumnConfig[] = [
   { key: 'id', label: 'ID', type: 'text', hidden: true, noSave: false },
+  { key: 'week', label: 'Tuần học', type: 'number', required: true, width: 'w-1/4' }, // New Field
   { key: 'studentName', label: 'Họ và tên', type: 'text', required: true },
   { key: 'class', label: 'Lớp', type: 'select', options: ['10A1', '10A2', '11A1', '11A2', '12A1'], required: true },
   { key: 'reason', label: 'Lý do nghỉ', type: 'select', options: ['Ốm đau', 'Việc gia đình', 'Đi khám bệnh', 'Khác'], required: true },
