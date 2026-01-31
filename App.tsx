@@ -23,7 +23,8 @@ import {
   Lock,
   User as UserIcon,
   ArrowLeft,
-  ShieldAlert
+  ShieldAlert,
+  Calendar
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
@@ -38,8 +39,11 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'settings'>('dashboard');
   const [data, setData] = useState<LeaveRequest[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]); // For Admin
-  const [systemConfig, setSystemConfig] = useState<SystemConfigData>({ classes: [], reasons: [], schoolName: APP_NAME });
+  const [systemConfig, setSystemConfig] = useState<SystemConfigData>({ classes: [], reasons: [], schoolName: APP_NAME, currentWeek: 1 });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Dashboard Filtering State
+  const [selectedDashboardWeek, setSelectedDashboardWeek] = useState<number>(0);
 
   // Auth State
   const [authMode, setAuthMode] = useState<AuthMode>('login');
@@ -103,6 +107,10 @@ const App: React.FC = () => {
     setAllUsers(result.users);
     if (result.config) {
       setSystemConfig(prev => ({ ...prev, ...result.config }));
+      // Set dashboard week to current system week initially
+      if (result.config.currentWeek) {
+        setSelectedDashboardWeek(Number(result.config.currentWeek));
+      }
     }
   };
 
@@ -197,6 +205,7 @@ const App: React.FC = () => {
       id: tempId,
       studentName: user.role === Role.HS ? user.fullname : formData.studentName,
       class: user.role === Role.HS ? user.class! : formData.class,
+      week: formData.week || systemConfig.currentWeek,
       reason: formData.reason,
       fromDate: formData.fromDate,
       toDate: formData.toDate,
@@ -275,6 +284,25 @@ const App: React.FC = () => {
       alert("Lỗi khi cập nhật trạng thái");
     }
   };
+
+  // --- Dashboard Logic (HOOK) ---
+  const dashboardData = useMemo(() => {
+    // Filter data by selected dashboard week
+    return data.filter(item => {
+       const itemWeek = item.week ? Number(item.week) : 0;
+       return itemWeek === selectedDashboardWeek;
+    });
+  }, [data, selectedDashboardWeek]);
+  
+  const availableWeeks = useMemo(() => {
+    const weeks = new Set<number>();
+    if (systemConfig.currentWeek) weeks.add(Number(systemConfig.currentWeek));
+    data.forEach(item => {
+      if (item.week) weeks.add(Number(item.week));
+    });
+    return Array.from(weeks).sort((a, b) => b - a); // Sort descending
+  }, [data, systemConfig]);
+
 
   // --- Filter Logic (HOOK) ---
   const filteredData = useMemo(() => {
@@ -564,23 +592,42 @@ const App: React.FC = () => {
           {/* DASHBOARD VIEW */}
           {activeTab === 'dashboard' && (
             <div className="max-w-6xl mx-auto">
+              
+              {/* Filter Row */}
+              <div className="flex justify-between items-center mb-6">
+                 <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+                    <Calendar size={18} className="text-primary" />
+                    <span className="text-sm text-gray-600 font-medium">Đang xem dữ liệu:</span>
+                    <select 
+                      className="text-sm font-bold text-gray-800 outline-none bg-transparent cursor-pointer"
+                      value={selectedDashboardWeek}
+                      onChange={(e) => setSelectedDashboardWeek(Number(e.target.value))}
+                    >
+                      {availableWeeks.map(w => (
+                         <option key={w} value={w}>Tuần {w}</option>
+                      ))}
+                      {availableWeeks.length === 0 && <option value={1}>Tuần 1</option>}
+                    </select>
+                 </div>
+              </div>
+
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <p className="text-sm text-gray-500 mb-1">Tổng đơn</p>
-                    <p className="text-2xl font-bold text-gray-800">{data.length}</p>
+                    <p className="text-sm text-gray-500 mb-1">Tổng đơn (Tuần {selectedDashboardWeek})</p>
+                    <p className="text-2xl font-bold text-gray-800">{dashboardData.length}</p>
                  </div>
                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <p className="text-sm text-gray-500 mb-1">Chờ duyệt</p>
-                    <p className="text-2xl font-bold text-yellow-600">{data.filter(i => i.status === Status.PENDING).length}</p>
+                    <p className="text-2xl font-bold text-yellow-600">{dashboardData.filter(i => i.status === Status.PENDING).length}</p>
                  </div>
                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <p className="text-sm text-gray-500 mb-1">Đã duyệt</p>
-                    <p className="text-2xl font-bold text-green-600">{data.filter(i => i.status === Status.APPROVED).length}</p>
+                    <p className="text-2xl font-bold text-green-600">{dashboardData.filter(i => i.status === Status.APPROVED).length}</p>
                  </div>
                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <p className="text-sm text-gray-500 mb-1">Từ chối</p>
-                    <p className="text-2xl font-bold text-red-600">{data.filter(i => i.status === Status.REJECTED).length}</p>
+                    <p className="text-2xl font-bold text-red-600">{dashboardData.filter(i => i.status === Status.REJECTED).length}</p>
                  </div>
               </div>
 
@@ -591,7 +638,7 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              <DashboardChart data={data} />
+              <DashboardChart data={dashboardData} />
             </div>
           )}
 
@@ -623,7 +670,10 @@ const App: React.FC = () => {
 
                 {canCreate && (
                   <button 
-                    onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
+                    onClick={() => { 
+                      setEditingItem(null); 
+                      setIsModalOpen(true); 
+                    }}
                     className="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 shadow-sm transition-colors"
                   >
                     <Plus size={18} />
@@ -638,7 +688,7 @@ const App: React.FC = () => {
                   <table className="w-full text-sm text-left text-gray-500">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
                       <tr>
-                        <th className="px-6 py-3">Mã</th>
+                        <th className="px-6 py-3">Tuần</th>
                         <th className="px-6 py-3">Học sinh</th>
                         <th className="px-6 py-3">Lớp</th>
                         <th className="px-6 py-3">Ngày nghỉ</th>
@@ -653,8 +703,8 @@ const App: React.FC = () => {
                       ) : (
                         filteredData.map((item) => (
                           <tr key={item.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4 font-medium text-gray-900">{item.id}</td>
-                            <td className="px-6 py-4">{item.studentName}</td>
+                            <td className="px-6 py-4 text-center font-bold text-gray-400">{item.week || '-'}</td>
+                            <td className="px-6 py-4 font-medium text-gray-900">{item.studentName}</td>
                             <td className="px-6 py-4">{item.class}</td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               {item.fromDate} {item.fromDate !== item.toDate && ` - ${item.toDate}`}
@@ -749,7 +799,7 @@ const App: React.FC = () => {
             <div className="p-6 overflow-y-auto">
               <DynamicForm 
                 config={formConfig}
-                initialData={editingItem || {}}
+                initialData={editingItem || { week: systemConfig.currentWeek }} 
                 onSubmit={editingItem ? handleUpdate : handleCreate}
                 onCancel={() => setIsModalOpen(false)}
                 isSubmitting={isSubmitting}
