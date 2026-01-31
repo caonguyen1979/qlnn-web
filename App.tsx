@@ -92,7 +92,18 @@ const App: React.FC = () => {
   // --- Initialization ---
   useEffect(() => {
     const init = async () => {
-      // Check session
+      // 1. Always load public config (school name, classes list)
+      // This ensures Registration form has class list even before login
+      try {
+        const configRes = await gasService.getSystemConfig();
+        if (configRes.success && configRes.data) {
+           setSystemConfig(prev => ({ ...prev, ...configRes.data }));
+        }
+      } catch (e) {
+         console.error("Config load failed", e);
+      }
+
+      // 2. Check session for logged in user
       const storedSession = localStorage.getItem(SESSION_KEY);
       if (storedSession) {
         const parsed = JSON.parse(storedSession);
@@ -427,7 +438,7 @@ const App: React.FC = () => {
           <div className="hidden md:flex md:w-1/2 bg-primary p-12 flex-col justify-center text-white relative">
             <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
             <div className="relative z-10">
-              <h1 className="text-4xl font-bold mb-4">Trường THPT Nguyễn Trãi</h1>
+              <h1 className="text-4xl font-bold mb-4">{systemConfig.schoolName}</h1>
               <p className="text-lg opacity-90">Hệ thống quản lý nghỉ phép học sinh thông minh.</p>
             </div>
           </div>
@@ -672,7 +683,9 @@ const App: React.FC = () => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{user.fullname}</p>
-              <p className="text-xs text-gray-500 truncate capitalize">{user.role}</p>
+              <p className="text-xs text-gray-500 truncate" title={user.class || user.role}>
+                {user.class || user.role}
+              </p>
             </div>
           </div>
           <button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
