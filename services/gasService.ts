@@ -123,7 +123,7 @@ export const gasService = {
     return await serverCall('api_login', username, password);
   },
 
-  register: async (data: {username: string, password: string, fullname: string, email: string}): Promise<ApiResponse<User>> => {
+  register: async (data: {username: string, password: string, fullname: string, email: string, class?: string, role?: string}): Promise<ApiResponse<User>> => {
     return await serverCall('api_register', data);
   },
 
