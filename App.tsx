@@ -7,10 +7,8 @@ import { DashboardChart } from './components/DashboardChart';
 import { UserManagement } from './components/UserManagement';
 import { SystemSettings } from './components/SystemSettings';
 import { ImagePreviewModal } from './components/ImagePreviewModal';
-// @ts-ignore
-import jsPDF from 'jspdf';
-// @ts-ignore
-import autoTable from 'jspdf-autotable';
+
+// Icons
 import { 
   LogOut, 
   LayoutDashboard, 
@@ -23,7 +21,7 @@ import {
   CheckCircle,
   XCircle,
   Trash2,
-  Edit2,
+  Edit2, 
   Mail,
   Lock,
   User as UserIcon,
@@ -127,7 +125,7 @@ const App: React.FC = () => {
            setSystemConfig(prev => ({ ...prev, ...configRes.data }));
         }
       } catch (e) {
-         console.error("Config load failed", e);
+         console.warn("Config load failed (likely offline):", e);
       }
 
       // 2. Check session for logged in user
@@ -137,7 +135,20 @@ const App: React.FC = () => {
         // Simple expiry check (4 hours)
         if (new Date().getTime() < parsed.expiry) {
           setUser(parsed.user);
-          loadData();
+          // Load data but handle errors gracefully
+          try {
+             const result = await gasService.loadAllConfigData();
+             setData(result.requests);
+             setAllUsers(result.users);
+             if (result.config) {
+               setSystemConfig(prev => ({ ...prev, ...result.config }));
+               if (result.config.currentWeek) {
+                 setSelectedDashboardWeek(Number(result.config.currentWeek));
+               }
+             }
+          } catch (err) {
+            console.warn("Failed to load initial data", err);
+          }
         } else {
           localStorage.removeItem(SESSION_KEY);
         }
@@ -238,38 +249,47 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    
-    doc.setFont("helvetica", "bold");
-    doc.text(systemConfig.schoolName, 14, 15);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Danh sách nghỉ phép - Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 14, 25);
+  const exportToPDF = async () => {
+    try {
+      // Dynamic import to prevent initial load crashes
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
 
-    const tableColumn = ["Tuần", "Học sinh", "Lớp", "Lý do", "Ngày nghỉ", "Trạng thái"];
-    const tableRows: any[] = [];
+      const doc = new jsPDF();
+      
+      doc.setFont("helvetica", "bold");
+      doc.text(systemConfig.schoolName, 14, 15);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Danh sách nghỉ phép - Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 14, 25);
 
-    filteredData.forEach(item => {
-      const rowData = [
-        item.week,
-        item.studentName,
-        item.class,
-        item.reason,
-        `${formatDateDisplay(item.fromDate)} - ${formatDateDisplay(item.toDate)}`,
-        item.status
-      ];
-      tableRows.push(rowData);
-    });
+      const tableColumn = ["Tuần", "Học sinh", "Lớp", "Lý do", "Ngày nghỉ", "Trạng thái"];
+      const tableRows: any[] = [];
 
-    autoTable(doc, {
-      startY: 30,
-      head: [tableColumn],
-      body: tableRows,
-      styles: { font: "helvetica", fontSize: 10 },
-      headStyles: { fillColor: [13, 110, 253] }, // Primary Blue
-    });
+      filteredData.forEach(item => {
+        const rowData = [
+          item.week,
+          item.studentName,
+          item.class,
+          item.reason,
+          `${formatDateDisplay(item.fromDate)} - ${formatDateDisplay(item.toDate)}`,
+          item.status
+        ];
+        tableRows.push(rowData);
+      });
 
-    doc.save(`Bao_cao_nghi_phep_${new Date().toISOString().slice(0,10)}.pdf`);
+      autoTable(doc, {
+        startY: 30,
+        head: [tableColumn],
+        body: tableRows,
+        styles: { font: "helvetica", fontSize: 10 },
+        headStyles: { fillColor: [13, 110, 253] }, // Primary Blue
+      });
+
+      doc.save(`Bao_cao_nghi_phep_${new Date().toISOString().slice(0,10)}.pdf`);
+    } catch (e) {
+      console.error("PDF export failed:", e);
+      alert("Lỗi khi tải thư viện xuất PDF. Vui lòng thử lại sau.");
+    }
   };
 
   const toggleColumn = (key: string) => {
@@ -553,7 +573,7 @@ const App: React.FC = () => {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        {/* ... (Existing Auth UI code remains unchanged) ... */}
+        {/* ... (Existing Auth UI) ... */}
         <div className="flex w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden min-h-[500px]">
           {/* Left: Illustration */}
           <div className="hidden md:flex md:w-1/2 bg-primary p-12 flex-col justify-center text-white relative">
@@ -639,7 +659,7 @@ const App: React.FC = () => {
               </form>
             )}
             
-            {/* REGISTER FORM & FORGOT FORM (Same as before, abbreviated for brevity in update if untouched) */}
+            {/* REGISTER FORM */}
             {authMode === 'register' && (
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
