@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Role, LeaveRequest, Status, SystemConfigData } from './types';
 import { gasService } from './services/gasService';
 import { LEAVE_REQUEST_CONFIG, APP_NAME, PERMISSIONS } from './constants';
@@ -7,6 +7,10 @@ import { DashboardChart } from './components/DashboardChart';
 import { UserManagement } from './components/UserManagement';
 import { SystemSettings } from './components/SystemSettings';
 import { ImagePreviewModal } from './components/ImagePreviewModal';
+// @ts-ignore
+import jsPDF from 'jspdf';
+// @ts-ignore
+import autoTable from 'jspdf-autotable';
 import { 
   LogOut, 
   LayoutDashboard, 
@@ -31,12 +35,28 @@ import {
   ChevronLeft,
   ChevronRight,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Printer,
+  FileSpreadsheet,
+  FileDown,
+  Columns
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
 
 type AuthMode = 'login' | 'register' | 'forgot';
+
+// Column Definition for Visibility Toggle
+const AVAILABLE_COLUMNS = [
+  { key: 'week', label: 'Tuần' },
+  { key: 'studentName', label: 'Họ và tên' },
+  { key: 'class', label: 'Lớp' },
+  { key: 'date', label: 'Ngày nghỉ' }, // Derived column
+  { key: 'reason', label: 'Lý do' },
+  { key: 'detail', label: 'Chi tiết' },
+  { key: 'attachment', label: 'Minh chứng' },
+  { key: 'status', label: 'Trạng thái' }
+];
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -92,6 +112,11 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // Column Visibility State
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(AVAILABLE_COLUMNS.map(c => c.key));
+  const [isColMenuOpen, setIsColMenuOpen] = useState(false);
+  const colMenuRef = useRef<HTMLDivElement>(null);
+
   // --- Initialization ---
   useEffect(() => {
     const init = async () => {
@@ -120,6 +145,19 @@ const App: React.FC = () => {
       setLoading(false);
     };
     init();
+  }, []);
+
+  // Click outside to close column menu
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) {
+        setIsColMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   // Ensure non-admins are redirected from settings if they somehow get there
@@ -158,6 +196,86 @@ const App: React.FC = () => {
       return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
     return dateString;
+  };
+
+  // --- Export Functions ---
+  
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const exportToCSV = () => {
+    // Header
+    const headers = ['ID', 'Tuần', 'Học sinh', 'Lớp', 'Lý do', 'Từ ngày', 'Đến ngày', 'Trạng thái', 'Người duyệt'];
+    
+    // Body
+    const rows = filteredData.map(item => [
+      item.id,
+      item.week,
+      item.studentName,
+      item.class,
+      item.reason,
+      formatDateDisplay(item.fromDate),
+      formatDateDisplay(item.toDate),
+      item.status,
+      item.approver || ''
+    ]);
+
+    // Combine
+    const csvContent = [
+      headers.join(','), 
+      ...rows.map(e => e.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    // Download
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Bao_cao_nghi_phep_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFont("helvetica", "bold");
+    doc.text(systemConfig.schoolName, 14, 15);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Danh sách nghỉ phép - Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 14, 25);
+
+    const tableColumn = ["Tuần", "Học sinh", "Lớp", "Lý do", "Ngày nghỉ", "Trạng thái"];
+    const tableRows: any[] = [];
+
+    filteredData.forEach(item => {
+      const rowData = [
+        item.week,
+        item.studentName,
+        item.class,
+        item.reason,
+        `${formatDateDisplay(item.fromDate)} - ${formatDateDisplay(item.toDate)}`,
+        item.status
+      ];
+      tableRows.push(rowData);
+    });
+
+    autoTable(doc, {
+      startY: 30,
+      head: [tableColumn],
+      body: tableRows,
+      styles: { font: "helvetica", fontSize: 10 },
+      headStyles: { fillColor: [13, 110, 253] }, // Primary Blue
+    });
+
+    doc.save(`Bao_cao_nghi_phep_${new Date().toISOString().slice(0,10)}.pdf`);
+  };
+
+  const toggleColumn = (key: string) => {
+    setVisibleColumns(prev => 
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
   };
 
   // --- Auth Handlers ---
@@ -435,6 +553,7 @@ const App: React.FC = () => {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        {/* ... (Existing Auth UI code remains unchanged) ... */}
         <div className="flex w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden min-h-[500px]">
           {/* Left: Illustration */}
           <div className="hidden md:flex md:w-1/2 bg-primary p-12 flex-col justify-center text-white relative">
@@ -519,8 +638,8 @@ const App: React.FC = () => {
                 </div>
               </form>
             )}
-
-            {/* REGISTER FORM */}
+            
+            {/* REGISTER FORM & FORGOT FORM (Same as before, abbreviated for brevity in update if untouched) */}
             {authMode === 'register' && (
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
@@ -543,57 +662,31 @@ const App: React.FC = () => {
                   <input type="password" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
                     value={regPassword} onChange={e => setRegPassword(e.target.value)} />
                 </div>
-                
-                {/* NEW FIELD: USER TYPE SELECTION */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Bạn là?</label>
                   <div className="flex space-x-4">
-                    <button
-                      type="button"
-                      onClick={() => { setRegUserType('HS'); setRegClassInfo(''); }}
-                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${regUserType === 'HS' ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                    >
-                      Học sinh
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setRegUserType('OTHER'); setRegClassInfo(''); }}
-                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${regUserType === 'OTHER' ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                    >
-                      Khác
-                    </button>
+                    <button type="button" onClick={() => { setRegUserType('HS'); setRegClassInfo(''); }}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${regUserType === 'HS' ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>Học sinh</button>
+                    <button type="button" onClick={() => { setRegUserType('OTHER'); setRegClassInfo(''); }}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${regUserType === 'OTHER' ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>Khác</button>
                   </div>
                 </div>
-
-                {/* CONDITIONAL INFO INPUT */}
                 {regUserType === 'HS' ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Lớp</label>
-                    <select
-                      className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary"
-                      value={regClassInfo}
-                      onChange={(e) => setRegClassInfo(e.target.value)}
-                      required
-                    >
+                    <select className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary"
+                      value={regClassInfo} onChange={(e) => setRegClassInfo(e.target.value)} required>
                       <option value="">-- Chọn lớp --</option>
-                      {systemConfig.classes.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
+                      {systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                 ) : (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Thông tin thêm (Không bắt buộc)</label>
-                    <input 
-                      type="text" 
-                      className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
-                      value={regClassInfo} 
-                      onChange={e => setRegClassInfo(e.target.value)} 
-                      placeholder="Ví dụ: GVCN lớp 10A1, Cha mẹ HS Nguyễn Văn A lớp 12A1..."
-                    />
+                    <input type="text" className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
+                      value={regClassInfo} onChange={e => setRegClassInfo(e.target.value)} placeholder="Ví dụ: GVCN lớp 10A1..." />
                   </div>
                 )}
-
                 <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors mt-2">
                   {authLoading ? 'Đang đăng ký...' : 'Đăng ký'}
                 </button>
@@ -602,21 +695,15 @@ const App: React.FC = () => {
                 </div>
               </form>
             )}
-
-            {/* FORGOT PASSWORD FORM */}
+            
             {authMode === 'forgot' && (
-              <form onSubmit={handleForgot} className="space-y-4">
+               <form onSubmit={handleForgot} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email đã đăng ký</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input 
-                      type="email" 
-                      required
-                      className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                    />
+                    <input type="email" required className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+                      value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} />
                   </div>
                 </div>
                 <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors">
@@ -629,7 +716,6 @@ const App: React.FC = () => {
                 </div>
               </form>
             )}
-            
           </div>
         </div>
       </div>
@@ -719,7 +805,7 @@ const App: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shrink-0">
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shrink-0 no-print">
           <div className="flex items-center">
             {/* Mobile Toggle */}
             <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-600 mr-2">
@@ -748,13 +834,13 @@ const App: React.FC = () => {
         </header>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 main-content">
           
           {/* DASHBOARD VIEW */}
           {activeTab === 'dashboard' && (
             <div className="max-w-6xl mx-auto">
               {/* Filter Row */}
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex justify-between items-center mb-6 no-print">
                  <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
                     <Calendar size={18} className="text-primary" />
                     <span className="text-sm text-gray-600 font-medium">Đang xem dữ liệu:</span>
@@ -772,7 +858,7 @@ const App: React.FC = () => {
               </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 no-print">
                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <p className="text-sm text-gray-500 mb-1">Tổng đơn (Tuần {selectedDashboardWeek})</p>
                     <p className="text-2xl font-bold text-gray-800">{dashboardData.length}</p>
@@ -792,7 +878,7 @@ const App: React.FC = () => {
               </div>
 
               {user.role === Role.VIEWER && (
-                <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-lg flex items-center">
+                <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-lg flex items-center no-print">
                   <ShieldAlert className="w-5 h-5 mr-2" />
                   <span>Tài khoản của bạn đang ở chế độ <b>Viewer</b> (chỉ xem). Vui lòng liên hệ Admin để được cấp quyền tạo đơn hoặc duyệt đơn.</span>
                 </div>
@@ -805,8 +891,49 @@ const App: React.FC = () => {
           {/* REQUESTS LIST VIEW */}
           {activeTab === 'requests' && (
             <div className="max-w-6xl mx-auto h-full flex flex-col">
-              {/* Toolbar */}
-              <div className="bg-white p-4 rounded-t-xl border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              
+              {/* EXPORT TOOLBAR */}
+              <div className="bg-white p-2 rounded-t-xl border-b border-gray-200 flex justify-end gap-2 items-center mb-0 no-print">
+                  <button onClick={exportToCSV} className="flex items-center space-x-1 px-3 py-2 text-sm text-green-700 bg-white border border-green-200 rounded hover:bg-green-50" title="Xuất CSV/Excel">
+                    <FileSpreadsheet size={18} />
+                  </button>
+                  <button onClick={exportToPDF} className="flex items-center space-x-1 px-3 py-2 text-sm text-red-700 bg-white border border-red-200 rounded hover:bg-red-50" title="Xuất PDF">
+                    <FileDown size={18} />
+                  </button>
+                  <button onClick={handlePrint} className="flex items-center space-x-1 px-3 py-2 text-sm text-blue-700 bg-white border border-blue-200 rounded hover:bg-blue-50" title="In">
+                    <Printer size={18} />
+                  </button>
+                  
+                  {/* Column Toggle Dropdown */}
+                  <div className="relative" ref={colMenuRef}>
+                    <button 
+                      onClick={() => setIsColMenuOpen(!isColMenuOpen)}
+                      className="flex items-center space-x-1 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded hover:bg-gray-50" 
+                      title="Chọn cột hiển thị"
+                    >
+                       <Columns size={18} />
+                    </button>
+                    {isColMenuOpen && (
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 shadow-lg rounded-md z-50 p-2">
+                        <div className="text-xs font-bold text-gray-500 mb-2 px-2">HIỂN THỊ CỘT</div>
+                        {AVAILABLE_COLUMNS.map(col => (
+                          <label key={col.key} className="flex items-center px-2 py-1.5 hover:bg-gray-50 cursor-pointer rounded">
+                            <input 
+                              type="checkbox" 
+                              checked={visibleColumns.includes(col.key)}
+                              onChange={() => toggleColumn(col.key)}
+                              className="mr-2 rounded text-primary focus:ring-primary"
+                            />
+                            <span className="text-sm text-gray-700">{col.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+              </div>
+
+              {/* SEARCH TOOLBAR */}
+              <div className="bg-white p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
                 <div className="flex flex-1 items-center space-x-2">
                    <div className="relative flex-1 max-w-sm">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
@@ -865,57 +992,65 @@ const App: React.FC = () => {
               </div>
 
               {/* Table Container - Flex grow and scrollable */}
-              <div className="bg-white border-x border-gray-200 flex-1 overflow-hidden flex flex-col">
+              <div className="bg-white border-x border-gray-200 flex-1 overflow-hidden flex flex-col table-container">
                 <div className="flex-1 overflow-auto">
                   <table className="w-full text-sm text-left text-gray-500 relative">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b sticky top-0 z-10">
                       <tr>
-                        <th className="px-6 py-3 bg-gray-50">Tuần</th>
-                        <th className="px-6 py-3 bg-gray-50">Học sinh</th>
-                        <th className="px-6 py-3 bg-gray-50">Lớp</th>
-                        <th className="px-6 py-3 bg-gray-50">Ngày nghỉ</th>
-                        <th className="px-6 py-3 bg-gray-50">Lý do</th>
-                        <th className="px-6 py-3 text-center bg-gray-50">Minh chứng</th>
-                        <th className="px-6 py-3 bg-gray-50">Trạng thái</th>
-                        {(canApprove || canDelete) && <th className="px-6 py-3 text-center bg-gray-50">Hành động</th>}
+                        {visibleColumns.includes('week') && <th className="px-6 py-3 bg-gray-50">Tuần</th>}
+                        {visibleColumns.includes('studentName') && <th className="px-6 py-3 bg-gray-50">Họ và tên</th>}
+                        {visibleColumns.includes('class') && <th className="px-6 py-3 bg-gray-50">Lớp</th>}
+                        {visibleColumns.includes('date') && <th className="px-6 py-3 bg-gray-50">Ngày nghỉ</th>}
+                        {visibleColumns.includes('reason') && <th className="px-6 py-3 bg-gray-50">Lý do</th>}
+                        {visibleColumns.includes('detail') && <th className="px-6 py-3 bg-gray-50">Chi tiết</th>}
+                        {visibleColumns.includes('attachment') && <th className="px-6 py-3 text-center bg-gray-50">Minh chứng</th>}
+                        {visibleColumns.includes('status') && <th className="px-6 py-3 bg-gray-50">Trạng thái</th>}
+                        {(canApprove || canDelete) && <th className="px-6 py-3 text-center bg-gray-50 no-print">Hành động</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedData.length === 0 ? (
-                        <tr><td colSpan={8} className="px-6 py-8 text-center text-gray-400">Không có dữ liệu</td></tr>
+                        <tr><td colSpan={10} className="px-6 py-8 text-center text-gray-400">Không có dữ liệu</td></tr>
                       ) : (
                         paginatedData.map((item) => (
                           <tr key={item.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4 text-center font-bold text-gray-400">{item.week || '-'}</td>
-                            <td className="px-6 py-4 font-medium text-gray-900">{item.studentName}</td>
-                            <td className="px-6 py-4">{item.class}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate && ` - ${formatDateDisplay(item.toDate)}`}
-                            </td>
-                            <td className="px-6 py-4 truncate max-w-[150px]">{item.reason}</td>
-                            <td className="px-6 py-4 text-center">
-                              {item.attachmentUrl ? (
-                                <button 
-                                  onClick={() => setPreviewImageUrl(item.attachmentUrl || '')}
-                                  className="inline-flex items-center justify-center p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"
-                                  title="Xem minh chứng"
-                                >
-                                  <Eye size={18} />
-                                </button>
-                              ) : (
-                                <span className="text-gray-300">-</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4">
-                                <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                                  ${item.status === Status.APPROVED ? 'bg-green-100 text-green-700' : 
-                                    item.status === Status.REJECTED ? 'bg-red-100 text-red-700' : 
-                                    'bg-yellow-100 text-yellow-700'}`}>
-                                  {item.status}
-                                </span>
-                            </td>
-                            {(canApprove || canDelete) && (
+                            {visibleColumns.includes('week') && <td className="px-6 py-4 text-center font-bold text-gray-400">{item.week || '-'}</td>}
+                            {visibleColumns.includes('studentName') && <td className="px-6 py-4 font-medium text-gray-900">{item.studentName}</td>}
+                            {visibleColumns.includes('class') && <td className="px-6 py-4">{item.class}</td>}
+                            {visibleColumns.includes('date') && (
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate && ` - ${formatDateDisplay(item.toDate)}`}
+                              </td>
+                            )}
+                            {visibleColumns.includes('reason') && <td className="px-6 py-4 truncate max-w-[150px]">{item.reason}</td>}
+                            {visibleColumns.includes('detail') && <td className="px-6 py-4 truncate max-w-[150px]">{item.detail}</td>}
+                            {visibleColumns.includes('attachment') && (
                               <td className="px-6 py-4 text-center">
+                                {item.attachmentUrl ? (
+                                  <button 
+                                    onClick={() => setPreviewImageUrl(item.attachmentUrl || '')}
+                                    className="inline-flex items-center justify-center p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors no-print"
+                                    title="Xem minh chứng"
+                                  >
+                                    <Eye size={18} />
+                                  </button>
+                                ) : (
+                                  <span className="text-gray-300">-</span>
+                                )}
+                              </td>
+                            )}
+                            {visibleColumns.includes('status') && (
+                              <td className="px-6 py-4">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold
+                                    ${item.status === Status.APPROVED ? 'bg-green-100 text-green-700' : 
+                                      item.status === Status.REJECTED ? 'bg-red-100 text-red-700' : 
+                                      'bg-yellow-100 text-yellow-700'}`}>
+                                    {item.status}
+                                  </span>
+                              </td>
+                            )}
+                            {(canApprove || canDelete) && (
+                              <td className="px-6 py-4 text-center no-print">
                                 <div className="flex items-center justify-center space-x-2">
                                   {canApprove && item.status === Status.PENDING && (
                                     <>
@@ -961,7 +1096,7 @@ const App: React.FC = () => {
               </div>
 
               {/* Pagination Controls */}
-              <div className="bg-white p-4 border-t border-gray-200 rounded-b-xl flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="bg-white p-4 border-t border-gray-200 rounded-b-xl flex flex-col sm:flex-row justify-between items-center gap-4 pagination-controls">
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
                   <span>Hiển thị</span>
                   <select 
