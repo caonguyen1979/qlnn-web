@@ -7,7 +7,7 @@ import { DashboardChart } from './components/DashboardChart';
 import { UserManagement } from './components/UserManagement';
 import { SystemSettings } from './components/SystemSettings';
 import { ImagePreviewModal } from './components/ImagePreviewModal';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 // Icons
@@ -253,11 +253,8 @@ const App: React.FC = () => {
 
   const exportToPDF = () => {
     try {
+      // @ts-ignore
       const doc = new jsPDF();
-      
-      // Add font support for Vietnamese if possible, otherwise use standard
-      // Note: Standard jsPDF fonts don't support full Vietnamese characters well without custom font files.
-      // For this demo, we use standard font but keep in mind characters might be stripped if not supported.
       
       doc.setFont("helvetica", "bold");
       doc.text(systemConfig.schoolName, 14, 15);
@@ -268,11 +265,9 @@ const App: React.FC = () => {
       const tableRows: any[] = [];
 
       filteredData.forEach(item => {
-        // Simple Transliteration for PDF (since standard fonts don't support VN chars)
-        // In a real app, you would import a custom font like Roboto-Regular.ttf
         const rowData = [
           item.week,
-          item.studentName, // Note: Vietnamese chars might show incorrectly in standard font
+          item.studentName,
           item.class,
           item.reason,
           `${formatDateDisplay(item.fromDate)} - ${formatDateDisplay(item.toDate)}`,
