@@ -10,7 +10,7 @@
         theme: {
           extend: {
             colors: {
-              primary: '#0d6efd', // Bootstrap Primary Blue feel
+              primary: '#0d6efd',
               secondary: '#6c757d',
               success: '#198754',
               danger: '#dc3545',
@@ -24,73 +24,22 @@
       }
     </script>
     <style>
-      /* Custom scrollbar for better UX */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #f1f1f1; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #888; 
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #555; 
-      }
-
-      /* PRINT STYLES */
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: #f1f1f1; }
+      ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #555; }
       @media print {
-        @page {
-          size: landscape;
-          margin: 10mm;
-        }
-        
-        body {
-          background: white;
-          overflow: visible !important;
-          height: auto !important;
-        }
-
-        /* Hide Sidebar, Header, Toolbar, Pagination, Actions column */
-        aside, header, .toolbar-actions, .pagination-controls, .no-print {
-          display: none !important;
-        }
-
-        /* Make main content full width */
-        main, .main-content {
-          margin: 0 !important;
-          padding: 0 !important;
-          width: 100% !important;
-          overflow: visible !important;
-          height: auto !important;
-        }
-
-        /* Ensure table prints nicely */
-        .table-container {
-          overflow: visible !important;
-          border: none !important;
-        }
-        
-        table {
-          width: 100% !important;
-          border-collapse: collapse !important;
-        }
-        
-        th, td {
-          border: 1px solid #ddd !important;
-          padding: 8px !important;
-          color: black !important;
-        }
-        
-        /* Hide action buttons in table */
-        td button, th:last-child, td:last-child {
-          display: none !important;
-        }
+        @page { size: landscape; margin: 10mm; }
+        body { background: white; overflow: visible !important; height: auto !important; }
+        aside, header, .toolbar-actions, .pagination-controls, .no-print { display: none !important; }
+        main, .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; overflow: visible !important; height: auto !important; }
+        .table-container { overflow: visible !important; border: none !important; }
+        table { width: 100% !important; border-collapse: collapse !important; }
+        th, td { border: 1px solid #ddd !important; padding: 8px !important; color: black !important; }
+        td button, th:last-child, td:last-child { display: none !important; }
       }
     </style>
-<script type="importmap">
+  <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.4",
@@ -98,15 +47,16 @@
     "react/": "https://esm.sh/react@^19.2.4/",
     "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
     "recharts": "https://esm.sh/recharts@^3.7.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "vite": "https://esm.sh/vite@^7.3.1"
+    "jspdf": "https://esm.sh/jspdf@^4.0.0",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.7",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
   <body>
     <div id="root">
-      <!-- Fallback loading UI -->
       <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; color: #666;">
         <div style="margin-bottom: 20px;">
           <svg style="animation: spin 1s linear infinite; width: 50px; height: 50px; color: #0d6efd;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
