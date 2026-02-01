@@ -1,7 +1,7 @@
 {
   "name": "eduleave-manager",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,8 +13,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^2.12.2",
-    "jspdf": "^2.5.1",
-    "jspdf-autotable": "^3.8.2"
+    "jspdf": "latest",
+    "jspdf-autotable": "latest"
   },
   "devDependencies": {
     "@types/react": "^18.2.64",
