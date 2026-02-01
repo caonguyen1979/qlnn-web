@@ -2,8 +2,7 @@ import { User, Role, LeaveRequest, Status, ApiResponse, DashboardStats, SystemCo
 
 // --- CONFIGURATION ---
 // QUAN TRỌNG: Thay thế URL này bằng Web App URL của bạn sau khi deploy GAS
-// URL có dạng: https://script.google.com/macros/s/AKfycbx.../exec
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxzZGX6G6LASRT_kudGvRO69iVyZ81bfr0WDXcA0G5GKjHXngkCu-GMwnhdO26stHoE/exec; // <-- THAY URL CỦA BẠN VÀO ĐÂY
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxzZGX6G6LASRT_kudGvRO69iVyZ81bfr0WDXcA0G5GKjHXngkCu-GMwnhdO26stHoE/exec"; 
 
 // --- HELPER: DETECT ENVIRONMENT ---
 const isGAS = typeof window !== 'undefined' && (window as any).google && (window as any).google.script;
@@ -38,7 +37,6 @@ const MOCK_REQUESTS: LeaveRequest[] = [
 
 // Helper: Handle Mock Calls
 const handleMockCall = (funcName: string, ...args: any[]): any => {
-  // Silent log in dev mode
   if (!isPlaceholderUrl) {
     console.debug(`[Offline Mode] Executing mock for: ${funcName}`);
   }
@@ -46,7 +44,6 @@ const handleMockCall = (funcName: string, ...args: any[]): any => {
   switch (funcName) {
     case 'api_login':
       const [u, p] = args;
-      // Accept admin/admin or any user in mock list
       const user = MOCK_USERS.find(user => user.username === u);
       if (user || u === 'admin') {
          return { success: true, data: user || MOCK_USERS[0] };
@@ -72,7 +69,6 @@ const handleMockCall = (funcName: string, ...args: any[]): any => {
       };
       
     case 'api_createRequest':
-      // Return a fake successful response
       return { success: true, data: { ...args[0], id: `mock-${Date.now()}`, status: Status.PENDING, createdAt: new Date().toISOString() } };
       
     case 'api_updateRequest':
@@ -84,7 +80,6 @@ const handleMockCall = (funcName: string, ...args: any[]): any => {
       return { success: true, message: 'Thao tác giả lập thành công' };
 
     case 'api_uploadFile':
-      // Return a dummy placeholder image
       return "https://via.placeholder.com/150?text=Uploaded+File";
 
     default:
@@ -94,7 +89,6 @@ const handleMockCall = (funcName: string, ...args: any[]): any => {
 
 // Helper to make API calls (Handles both RPC and Fetch)
 const serverCall = async (funcName: string, ...args: any[]): Promise<any> => {
-  // CASE 1: Running inside GAS (iFrame)
   if (isGAS) {
     return new Promise((resolve, reject) => {
       (window as any).google.script.run
@@ -104,20 +98,15 @@ const serverCall = async (funcName: string, ...args: any[]): Promise<any> => {
     });
   }
 
-  // CASE 2: Running locally but with a Placeholder URL -> Use Mock directly to avoid CORS errors
   if (isPlaceholderUrl) {
     console.log(`[Dev Mode] Placeholder URL detected. Using Mock Data for ${funcName}.`);
-    // Simulate network delay
     await delay(300);
     return handleMockCall(funcName, ...args);
   }
 
-  // CASE 3: Running on Vercel/Localhost with a real URL (Use Fetch API)
   try {
     const response = await fetch(GAS_API_URL, {
       method: "POST",
-      // Important: GAS Web Apps don't handle preflight OPTIONS well. 
-      // Using text/plain prevents the browser from sending OPTIONS.
       headers: {
         "Content-Type": "text/plain;charset=utf-8",
       },
@@ -134,19 +123,14 @@ const serverCall = async (funcName: string, ...args: any[]): Promise<any> => {
     const result = await response.json();
     return result;
   } catch (error) {
-    // WARN instead of ERROR to prevent scary console logs
     console.warn(`API Connection Failed (${funcName}) - Switching to Offline Mode.`);
-    // FALLBACK TO MOCK DATA instead of crashing
     return handleMockCall(funcName, ...args);
   }
 };
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// --- MAIN SERVICE ---
-
 export const gasService = {
-  // 1. System Config & Initialization
   loadAllConfigData: async (): Promise<{ users: User[], requests: LeaveRequest[], config: SystemConfigData }> => {
     return await serverCall('api_loadAllConfigData');
   },
@@ -159,7 +143,6 @@ export const gasService = {
     return await serverCall('api_saveSystemConfig', config);
   },
 
-  // 2. Auth
   login: async (username: string, password?: string): Promise<ApiResponse<User>> => {
     return await serverCall('api_login', username, password);
   },
@@ -172,7 +155,6 @@ export const gasService = {
     return await serverCall('api_resetPassword', email);
   },
 
-  // 3. User Management
   createUser: async (data: Partial<User>): Promise<ApiResponse<User>> => {
     return await serverCall('api_createUser', data);
   },
@@ -185,7 +167,6 @@ export const gasService = {
     return await serverCall('api_deleteUser', id);
   },
 
-  // 4. Request CRUD Operations
   createRequest: async (data: Partial<LeaveRequest>, user: User): Promise<ApiResponse<LeaveRequest>> => {
     return await serverCall('api_createRequest', data, JSON.stringify(user));
   },
@@ -198,9 +179,7 @@ export const gasService = {
     return await serverCall('api_deleteRequest', id);
   },
 
-  // 5. File Upload (Handling Base64 for GAS)
   uploadFile: async (file: File): Promise<string> => {
-    // Client-side validation
     const allowedTypes = ['image/jpeg', 'image/png'];
     const maxSize = 3 * 1024 * 1024; // 3MB
 
@@ -215,7 +194,7 @@ export const gasService = {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = async (e) => {
-        const content = (e.target?.result as string).split(',')[1]; // Get Base64 part
+        const content = (e.target?.result as string).split(',')[1];
         try {
           const url = await serverCall('api_uploadFile', content, file.name, file.type);
           resolve(url);
@@ -227,7 +206,6 @@ export const gasService = {
     });
   },
 
-  // 6. Reporting
   getStats: async (): Promise<DashboardStats> => {
     return {
       total: 0,
