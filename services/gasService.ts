@@ -3,7 +3,7 @@ import { User, Role, LeaveRequest, Status, ApiResponse, DashboardStats, SystemCo
 // --- CONFIGURATION ---
 // QUAN TRỌNG: Thay thế URL này bằng Web App URL của bạn sau khi deploy GAS
 // URL có dạng: https://script.google.com/macros/s/AKfycbx.../exec
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxzZGX6G6LASRT_kudGvRO69iVyZ81bfr0WDXcA0G5GKjHXngkCu-GMwnhdO26stHoE/exec"; // <-- THAY URL CỦA BẠN VÀO ĐÂY
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxzZGX6G6LASRT_kudGvRO69iVyZ81bfr0WDXcA0G5GKjHXngkCu-GMwnhdO26stHoE/exec; // <-- THAY URL CỦA BẠN VÀO ĐÂY
 
 // --- HELPER: DETECT ENVIRONMENT ---
 const isGAS = typeof window !== 'undefined' && (window as any).google && (window as any).google.script;
@@ -12,6 +12,12 @@ const isGAS = typeof window !== 'undefined' && (window as any).google && (window
 const isPlaceholderUrl = GAS_API_URL.includes("AKfycbyvj5mG2y9_Ym6_Zz5XqXqXqXqXq");
 
 // --- MOCK DATA FOR FALLBACK ---
+const getToday = (offsetDays = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().split('T')[0];
+}
+
 const MOCK_USERS: User[] = [
   { id: 'u1', username: 'admin', fullname: 'Quản Trị Viên (Demo)', role: Role.ADMIN, class: '' },
   { id: 'u2', username: 'hs1', fullname: 'Nguyễn Văn A (Demo)', role: Role.HS, class: '10A1' },
@@ -20,20 +26,21 @@ const MOCK_USERS: User[] = [
 const MOCK_REQUESTS: LeaveRequest[] = [
   { 
     id: 'demo1', studentName: 'Nguyễn Văn A', class: '10A1', week: 1, 
-    reason: 'Ốm đau', fromDate: '2023-09-05', toDate: '2023-09-06', 
+    reason: 'Ốm đau', fromDate: getToday(-1), toDate: getToday(0), 
     status: Status.APPROVED, createdBy: 'hs1', createdAt: new Date().toISOString() 
   },
   { 
     id: 'demo2', studentName: 'Trần Thị B', class: '11A2', week: 1, 
-    reason: 'Việc gia đình', fromDate: '2023-09-07', toDate: '2023-09-07', 
+    reason: 'Việc gia đình', fromDate: getToday(1), toDate: getToday(1), 
     status: Status.PENDING, createdBy: 'hs2', createdAt: new Date().toISOString() 
   }
 ];
 
 // Helper: Handle Mock Calls
 const handleMockCall = (funcName: string, ...args: any[]): any => {
+  // Silent log in dev mode
   if (!isPlaceholderUrl) {
-    console.warn(`[Offline Mode] Executing mock for: ${funcName}`, args);
+    console.debug(`[Offline Mode] Executing mock for: ${funcName}`);
   }
   
   switch (funcName) {
@@ -101,7 +108,7 @@ const serverCall = async (funcName: string, ...args: any[]): Promise<any> => {
   if (isPlaceholderUrl) {
     console.log(`[Dev Mode] Placeholder URL detected. Using Mock Data for ${funcName}.`);
     // Simulate network delay
-    await delay(500);
+    await delay(300);
     return handleMockCall(funcName, ...args);
   }
 
@@ -127,7 +134,8 @@ const serverCall = async (funcName: string, ...args: any[]): Promise<any> => {
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("API Connection Error (CORS or Network):", error);
+    // WARN instead of ERROR to prevent scary console logs
+    console.warn(`API Connection Failed (${funcName}) - Switching to Offline Mode.`);
     // FALLBACK TO MOCK DATA instead of crashing
     return handleMockCall(funcName, ...args);
   }
