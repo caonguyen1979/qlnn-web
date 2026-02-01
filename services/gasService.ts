@@ -8,6 +8,9 @@ const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxzZGX6G6LASRT_kudG
 // --- HELPER: DETECT ENVIRONMENT ---
 const isGAS = typeof window !== 'undefined' && (window as any).google && (window as any).google.script;
 
+// Check if URL is the default placeholder
+const isPlaceholderUrl = GAS_API_URL.includes("AKfycbyvj5mG2y9_Ym6_Zz5XqXqXqXqXq");
+
 // --- MOCK DATA FOR FALLBACK ---
 const MOCK_USERS: User[] = [
   { id: 'u1', username: 'admin', fullname: 'Quản Trị Viên (Demo)', role: Role.ADMIN, class: '' },
@@ -29,7 +32,9 @@ const MOCK_REQUESTS: LeaveRequest[] = [
 
 // Helper: Handle Mock Calls
 const handleMockCall = (funcName: string, ...args: any[]): any => {
-  console.warn(`[Offline Mode] Executing mock for: ${funcName}`, args);
+  if (!isPlaceholderUrl) {
+    console.warn(`[Offline Mode] Executing mock for: ${funcName}`, args);
+  }
   
   switch (funcName) {
     case 'api_login':
@@ -92,10 +97,23 @@ const serverCall = async (funcName: string, ...args: any[]): Promise<any> => {
     });
   }
 
-  // CASE 2: Running on Vercel/Localhost (Use Fetch API)
+  // CASE 2: Running locally but with a Placeholder URL -> Use Mock directly to avoid CORS errors
+  if (isPlaceholderUrl) {
+    console.log(`[Dev Mode] Placeholder URL detected. Using Mock Data for ${funcName}.`);
+    // Simulate network delay
+    await delay(500);
+    return handleMockCall(funcName, ...args);
+  }
+
+  // CASE 3: Running on Vercel/Localhost with a real URL (Use Fetch API)
   try {
     const response = await fetch(GAS_API_URL, {
       method: "POST",
+      // Important: GAS Web Apps don't handle preflight OPTIONS well. 
+      // Using text/plain prevents the browser from sending OPTIONS.
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8",
+      },
       body: JSON.stringify({
         action: funcName,
         args: args
