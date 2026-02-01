@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Quản lý chuyên cần</title>
+    <title>EduLeave Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -39,6 +39,56 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #555; 
       }
+
+      /* PRINT STYLES */
+      @media print {
+        @page {
+          size: landscape;
+          margin: 10mm;
+        }
+        
+        body {
+          background: white;
+          overflow: visible !important;
+          height: auto !important;
+        }
+
+        /* Hide Sidebar, Header, Toolbar, Pagination, Actions column */
+        aside, header, .toolbar-actions, .pagination-controls, .no-print {
+          display: none !important;
+        }
+
+        /* Make main content full width */
+        main, .main-content {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          overflow: visible !important;
+          height: auto !important;
+        }
+
+        /* Ensure table prints nicely */
+        .table-container {
+          overflow: visible !important;
+          border: none !important;
+        }
+        
+        table {
+          width: 100% !important;
+          border-collapse: collapse !important;
+        }
+        
+        th, td {
+          border: 1px solid #ddd !important;
+          padding: 8px !important;
+          color: black !important;
+        }
+        
+        /* Hide action buttons in table */
+        td button, th:last-child, td:last-child {
+          display: none !important;
+        }
+      }
     </style>
   <script type="importmap">
 {
@@ -47,14 +97,14 @@
     "react": "https://esm.sh/react@^19.2.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "recharts": "https://esm.sh/recharts@^3.7.0"
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.5.28"
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+  </body>
 </html>
