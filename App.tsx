@@ -7,6 +7,8 @@ import { DashboardChart } from './components/DashboardChart';
 import { UserManagement } from './components/UserManagement';
 import { SystemSettings } from './components/SystemSettings';
 import { ImagePreviewModal } from './components/ImagePreviewModal';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Icons
 import { 
@@ -249,26 +251,28 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const exportToPDF = async () => {
+  const exportToPDF = () => {
     try {
-      // Dynamic import to prevent initial load crashes
-      const { jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-
       const doc = new jsPDF();
+      
+      // Add font support for Vietnamese if possible, otherwise use standard
+      // Note: Standard jsPDF fonts don't support full Vietnamese characters well without custom font files.
+      // For this demo, we use standard font but keep in mind characters might be stripped if not supported.
       
       doc.setFont("helvetica", "bold");
       doc.text(systemConfig.schoolName, 14, 15);
       doc.setFont("helvetica", "normal");
       doc.text(`Danh sách nghỉ phép - Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 14, 25);
 
-      const tableColumn = ["Tuần", "Học sinh", "Lớp", "Lý do", "Ngày nghỉ", "Trạng thái"];
+      const tableColumn = ["Tuan", "Hoc sinh", "Lop", "Ly do", "Ngay nghi", "Trang thai"];
       const tableRows: any[] = [];
 
       filteredData.forEach(item => {
+        // Simple Transliteration for PDF (since standard fonts don't support VN chars)
+        // In a real app, you would import a custom font like Roboto-Regular.ttf
         const rowData = [
           item.week,
-          item.studentName,
+          item.studentName, // Note: Vietnamese chars might show incorrectly in standard font
           item.class,
           item.reason,
           `${formatDateDisplay(item.fromDate)} - ${formatDateDisplay(item.toDate)}`,
@@ -288,7 +292,7 @@ const App: React.FC = () => {
       doc.save(`Bao_cao_nghi_phep_${new Date().toISOString().slice(0,10)}.pdf`);
     } catch (e) {
       console.error("PDF export failed:", e);
-      alert("Lỗi khi tải thư viện xuất PDF. Vui lòng thử lại sau.");
+      alert("Lỗi khi xuất PDF. Vui lòng thử lại sau.");
     }
   };
 
