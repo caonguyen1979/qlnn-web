@@ -492,13 +492,6 @@ const App: React.FC = () => {
   };
 
   // --- Dashboard Logic (HOOK) ---
-  const dashboardData = useMemo(() => {
-    return data.filter(item => {
-       const itemWeek = item.week ? Number(item.week) : 0;
-       return itemWeek === selectedDashboardWeek;
-    });
-  }, [data, selectedDashboardWeek]);
-  
   const availableWeeks = useMemo(() => {
     const weeks = new Set<number>();
     if (systemConfig.currentWeek) weeks.add(Number(systemConfig.currentWeek));
@@ -880,19 +873,19 @@ const App: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 no-print">
                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <p className="text-sm text-gray-500 mb-1">Tổng đơn (Tuần {selectedDashboardWeek})</p>
-                    <p className="text-2xl font-bold text-gray-800">{dashboardData.length}</p>
+                    <p className="text-2xl font-bold text-gray-800">{data.filter(r => Number(r.week) === selectedDashboardWeek).length}</p>
                  </div>
                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <p className="text-sm text-gray-500 mb-1">Chờ duyệt</p>
-                    <p className="text-2xl font-bold text-yellow-600">{dashboardData.filter(i => i.status === Status.PENDING).length}</p>
+                    <p className="text-2xl font-bold text-yellow-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.PENDING).length}</p>
                  </div>
                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <p className="text-sm text-gray-500 mb-1">Đã duyệt</p>
-                    <p className="text-2xl font-bold text-green-600">{dashboardData.filter(i => i.status === Status.APPROVED).length}</p>
+                    <p className="text-2xl font-bold text-green-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.APPROVED).length}</p>
                  </div>
                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <p className="text-sm text-gray-500 mb-1">Từ chối</p>
-                    <p className="text-2xl font-bold text-red-600">{dashboardData.filter(i => i.status === Status.REJECTED).length}</p>
+                    <p className="text-2xl font-bold text-red-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.REJECTED).length}</p>
                  </div>
               </div>
 
@@ -903,7 +896,11 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              <DashboardChart data={dashboardData} />
+              <DashboardChart 
+                allData={data} 
+                systemConfig={systemConfig} 
+                selectedWeek={selectedDashboardWeek} 
+              />
             </div>
           )}
 
