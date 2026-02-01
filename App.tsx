@@ -29,7 +29,9 @@ import {
   Eye, 
   ImageIcon,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
@@ -46,6 +48,7 @@ const App: React.FC = () => {
   const [allUsers, setAllUsers] = useState<User[]>([]); // For Admin
   const [systemConfig, setSystemConfig] = useState<SystemConfigData>({ classes: [], reasons: [], schoolName: APP_NAME, currentWeek: 1 });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // New state for desktop sidebar
 
   // Dashboard Filtering State
   const [selectedDashboardWeek, setSelectedDashboardWeek] = useState<number>(0);
@@ -93,7 +96,6 @@ const App: React.FC = () => {
   useEffect(() => {
     const init = async () => {
       // 1. Always load public config (school name, classes list)
-      // This ensures Registration form has class list even before login
       try {
         const configRes = await gasService.getSystemConfig();
         if (configRes.success && configRes.data) {
@@ -642,13 +644,13 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden font-sans">
       {/* Sidebar - Desktop */}
-      <aside className={`hidden md:flex flex-col w-64 bg-white border-r border-gray-200 transition-all z-20`}>
-        <div className="h-16 flex items-center px-6 border-b border-gray-100">
+      <aside className={`hidden md:flex flex-col bg-white border-r border-gray-200 transition-all duration-300 z-20 ${sidebarCollapsed ? 'w-0 overflow-hidden border-none' : 'w-64'}`}>
+        <div className="h-16 flex items-center px-6 border-b border-gray-100 min-w-[16rem]">
           <img src="./logo.png" alt="Logo" className="w-10 h-10 object-contain mr-3" />
-          <span className="text-xl font-bold text-gray-800">{systemConfig.schoolName}</span>
+          <span className="text-xl font-bold text-gray-800 truncate">{systemConfig.schoolName}</span>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 min-w-[16rem]">
           <button 
             onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'dashboard' ? 'bg-blue-50 text-primary font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
@@ -676,9 +678,9 @@ const App: React.FC = () => {
           )}
         </nav>
 
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-4 border-t border-gray-100 min-w-[16rem]">
           <div className="flex items-center space-x-3 mb-4 px-2">
-            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold uppercase">
+            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold uppercase shrink-0">
               {user.fullname ? user.fullname.charAt(0) : 'U'}
             </div>
             <div className="flex-1 min-w-0">
@@ -718,12 +720,26 @@ const App: React.FC = () => {
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shrink-0">
-          <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-600">
-            <Menu size={24} />
-          </button>
-          <h2 className="text-lg font-semibold text-gray-800 ml-2 md:ml-0">
-            {activeTab === 'dashboard' ? 'Tổng quan hệ thống' : activeTab === 'requests' ? 'Quản lý đơn xin phép' : 'Cài đặt'}
-          </h2>
+          <div className="flex items-center">
+            {/* Mobile Toggle */}
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-600 mr-2">
+              <Menu size={24} />
+            </button>
+            
+            {/* Desktop Sidebar Toggle */}
+            <button 
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
+              className="hidden md:flex text-gray-600 mr-4 hover:bg-gray-100 p-2 rounded-lg transition-colors"
+              title={sidebarCollapsed ? "Mở menu" : "Thu gọn menu"}
+            >
+              <Menu size={24} />
+            </button>
+
+            <h2 className="text-lg font-semibold text-gray-800">
+              {activeTab === 'dashboard' ? 'Tổng quan hệ thống' : activeTab === 'requests' ? 'Quản lý đơn xin phép' : 'Cài đặt'}
+            </h2>
+          </div>
+          
           <div className="flex items-center space-x-4">
              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${user.role === Role.ADMIN ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                 {user.role}
