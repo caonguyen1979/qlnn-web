@@ -39,7 +39,9 @@ import {
   Printer,
   FileSpreadsheet,
   FileDown,
-  Columns
+  Columns,
+  RotateCcw,
+  Smartphone
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
@@ -51,11 +53,12 @@ const AVAILABLE_COLUMNS = [
   { key: 'week', label: 'Tuần' },
   { key: 'studentName', label: 'Họ và tên' },
   { key: 'class', label: 'Lớp' },
-  { key: 'date', label: 'Ngày nghỉ' }, // Derived column
+  { key: 'date', label: 'Ngày nghỉ' }, 
   { key: 'reason', label: 'Lý do' },
   { key: 'detail', label: 'Chi tiết' },
   { key: 'attachment', label: 'Minh chứng' },
-  { key: 'status', label: 'Trạng thái' }
+  { key: 'status', label: 'Trạng thái' },
+  { key: 'approver', label: 'Người duyệt' }
 ];
 
 const App: React.FC = () => {
@@ -68,7 +71,7 @@ const App: React.FC = () => {
   const [allUsers, setAllUsers] = useState<User[]>([]); // For Admin
   const [systemConfig, setSystemConfig] = useState<SystemConfigData>({ classes: [], reasons: [], schoolName: APP_NAME, currentWeek: 1 });
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // New state for desktop sidebar
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); 
 
   // Dashboard Filtering State
   const [selectedDashboardWeek, setSelectedDashboardWeek] = useState<number>(0);
@@ -120,24 +123,20 @@ const App: React.FC = () => {
   // --- Initialization ---
   useEffect(() => {
     const init = async () => {
-      // 1. Always load public config (school name, classes list)
       try {
         const configRes = await gasService.getSystemConfig();
         if (configRes.success && configRes.data) {
            setSystemConfig(prev => ({ ...prev, ...configRes.data }));
         }
       } catch (e) {
-         console.warn("Config load failed (likely offline):", e);
+         console.warn("Config load failed:", e);
       }
 
-      // 2. Check session for logged in user
       const storedSession = localStorage.getItem(SESSION_KEY);
       if (storedSession) {
         const parsed = JSON.parse(storedSession);
-        // Simple expiry check (4 hours)
         if (new Date().getTime() < parsed.expiry) {
           setUser(parsed.user);
-          // Load data but handle errors gracefully
           try {
              const result = await gasService.loadAllConfigData();
              setData(result.requests);
@@ -160,7 +159,6 @@ const App: React.FC = () => {
     init();
   }, []);
 
-  // Click outside to close column menu
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) {
@@ -173,14 +171,12 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Ensure non-admins are redirected from settings if they somehow get there
   useEffect(() => {
     if (user && user.role !== Role.ADMIN && activeTab === 'settings') {
       setActiveTab('dashboard');
     }
   }, [user, activeTab]);
 
-  // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterClass, filterStatus, filterWeek]);
@@ -191,18 +187,14 @@ const App: React.FC = () => {
     setAllUsers(result.users);
     if (result.config) {
       setSystemConfig(prev => ({ ...prev, ...result.config }));
-      // Set dashboard week to current system week initially
       if (result.config.currentWeek) {
         setSelectedDashboardWeek(Number(result.config.currentWeek));
       }
     }
   };
 
-  // --- Helpers ---
-  // Converts yyyy-mm-dd or ISO string to dd/mm/yyyy for display
   const formatDateDisplay = (dateString: string) => {
     if (!dateString) return '';
-    // Handle ISO string or YYYY-MM-DD
     const datePart = dateString.split('T')[0]; 
     const parts = datePart.split('-');
     if (parts.length === 3) {
@@ -212,35 +204,16 @@ const App: React.FC = () => {
   };
 
   // --- Export Functions ---
-  
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => { window.print(); };
 
   const exportToCSV = () => {
-    // Header
     const headers = ['ID', 'Tuần', 'Học sinh', 'Lớp', 'Lý do', 'Từ ngày', 'Đến ngày', 'Trạng thái', 'Người duyệt'];
-    
-    // Body
     const rows = filteredData.map(item => [
-      item.id,
-      item.week,
-      item.studentName,
-      item.class,
-      item.reason,
-      formatDateDisplay(item.fromDate),
-      formatDateDisplay(item.toDate),
-      item.status,
-      item.approver || ''
+      item.id, item.week, item.studentName, item.class, item.reason,
+      formatDateDisplay(item.fromDate), formatDateDisplay(item.toDate),
+      item.status, item.approver || ''
     ]);
-
-    // Combine
-    const csvContent = [
-      headers.join(','), 
-      ...rows.map(e => e.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
-    ].join('\n');
-
-    // Download
+    const csvContent = [headers.join(','), ...rows.map(e => e.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))].join('\n');
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -255,58 +228,35 @@ const App: React.FC = () => {
     try {
       // @ts-ignore
       const doc = new jsPDF();
-      
       doc.setFont("helvetica", "bold");
       doc.text(systemConfig.schoolName, 14, 15);
       doc.setFont("helvetica", "normal");
       doc.text(`Danh sách nghỉ phép - Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 14, 25);
-
-      const tableColumn = ["Tuan", "Hoc sinh", "Lop", "Ly do", "Ngay nghi", "Trang thai"];
-      const tableRows: any[] = [];
-
-      filteredData.forEach(item => {
-        const rowData = [
-          item.week,
-          item.studentName,
-          item.class,
-          item.reason,
-          `${formatDateDisplay(item.fromDate)} - ${formatDateDisplay(item.toDate)}`,
-          item.status
-        ];
-        tableRows.push(rowData);
-      });
-
+      const tableColumn = ["Tuan", "Hoc sinh", "Lop", "Ly do", "Ngay nghi", "Trang thai", "Nguoi duyet"];
+      const tableRows = filteredData.map(item => [
+        item.week, item.studentName, item.class, item.reason,
+        `${formatDateDisplay(item.fromDate)} - ${formatDateDisplay(item.toDate)}`,
+        item.status, item.approver || ''
+      ]);
       autoTable(doc, {
-        startY: 30,
-        head: [tableColumn],
-        body: tableRows,
+        startY: 30, head: [tableColumn], body: tableRows,
         styles: { font: "helvetica", fontSize: 10 },
-        headStyles: { fillColor: [13, 110, 253] }, // Primary Blue
+        headStyles: { fillColor: [13, 110, 253] },
       });
-
       doc.save(`Bao_cao_nghi_phep_${new Date().toISOString().slice(0,10)}.pdf`);
     } catch (e) {
       console.error("PDF export failed:", e);
-      alert("Lỗi khi xuất PDF. Vui lòng thử lại sau.");
+      alert("Lỗi khi xuất PDF.");
     }
   };
 
   const toggleColumn = (key: string) => {
-    setVisibleColumns(prev => 
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    );
+    setVisibleColumns(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   };
 
   // --- Auth Handlers ---
-  const clearAuthStates = () => {
-    setAuthError('');
-    setAuthSuccess('');
-    setAuthLoading(false);
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearAuthStates();
     setAuthLoading(true);
     try {
       const res = await gasService.login(username, password);
@@ -319,7 +269,7 @@ const App: React.FC = () => {
         setAuthError(res.message || 'Đăng nhập thất bại');
       }
     } catch (err) {
-      setAuthError('Lỗi kết nối đến server');
+      setAuthError('Lỗi kết nối');
     } finally {
       setAuthLoading(false);
     }
@@ -327,47 +277,19 @@ const App: React.FC = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearAuthStates();
     setAuthLoading(true);
     try {
-      // Determine Role based on selection
-      const assignedRole = regUserType === 'HS' ? Role.HS : Role.VIEWER;
-
       const res = await gasService.register({
-        username: regUsername,
-        password: regPassword,
-        fullname: regFullname,
-        email: regEmail,
-        class: regClassInfo,
-        role: assignedRole
+        username: regUsername, password: regPassword, fullname: regFullname, email: regEmail, class: regClassInfo, role: regUserType === 'HS' ? Role.HS : Role.VIEWER
       });
-      
       if (res.success) {
-        setAuthSuccess('Đăng ký thành công! Vui lòng đăng nhập.');
+        setAuthSuccess('Đăng ký thành công!');
         setTimeout(() => setAuthMode('login'), 2000);
       } else {
         setAuthError(res.message || 'Đăng ký thất bại');
       }
     } catch (err) {
-      setAuthError('Lỗi kết nối server');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleForgot = async (e: React.FormEvent) => {
-    e.preventDefault();
-    clearAuthStates();
-    setAuthLoading(true);
-    try {
-      const res = await gasService.resetPassword(forgotEmail);
-      if (res.success) {
-        setAuthSuccess(res.message || 'Đã gửi email khôi phục.');
-      } else {
-        setAuthError(res.message || 'Lỗi khôi phục');
-      }
-    } catch (err) {
-      setAuthError('Lỗi kết nối server');
+      setAuthError('Lỗi kết nối');
     } finally {
       setAuthLoading(false);
     }
@@ -377,94 +299,54 @@ const App: React.FC = () => {
     localStorage.removeItem(SESSION_KEY);
     setUser(null);
     setData([]);
-    setUsername('');
-    setPassword('');
-    setActiveTab('dashboard'); // Reset tab on logout
+    setActiveTab('dashboard');
   };
 
-  // --- CRUD & Optimistic UI ---
+  // --- CRUD ---
   const handleCreate = async (formData: any) => {
     if (!user) return;
-    
-    // VALIDATION FOR STUDENTS
-    if (user.role === Role.HS) {
-      const inputWeek = Number(formData.week);
-      const currentWeek = Number(systemConfig.currentWeek);
-      
-      if (inputWeek < currentWeek) {
-        alert(`Bạn không thể xin phép cho tuần ${inputWeek} vì tuần hiện tại là ${currentWeek}.`);
-        return;
-      }
-
-      const todayStr = new Date().toISOString().split('T')[0];
-      if (formData.fromDate < todayStr) {
-        alert(`Ngày bắt đầu nghỉ không được nhỏ hơn ngày hiện tại (${todayStr}).`);
-        return;
-      }
-    }
-
     setIsSubmitting(true);
-    
-    // Optimistic Update
     const tempId = `TEMP-${Date.now()}`;
     const optimisticItem: LeaveRequest = {
-      id: tempId,
-      studentName: user.role === Role.HS ? user.fullname : formData.studentName,
+      id: tempId, studentName: user.role === Role.HS ? user.fullname : formData.studentName,
       class: user.role === Role.HS ? user.class! : formData.class,
-      week: formData.week || systemConfig.currentWeek,
-      reason: formData.reason,
-      fromDate: formData.fromDate,
-      toDate: formData.toDate,
-      status: Status.PENDING,
-      createdBy: user.username,
-      createdAt: new Date().toISOString(),
-      ...formData
+      week: formData.week || systemConfig.currentWeek, reason: formData.reason,
+      fromDate: formData.fromDate, toDate: formData.toDate, status: Status.PENDING,
+      createdBy: user.username, createdAt: new Date().toISOString(), ...formData
     };
-
     setData(prev => [optimisticItem, ...prev]);
     setIsModalOpen(false);
-
     try {
       const res = await gasService.createRequest(formData, user);
       if (res.success && res.data) {
         setData(prev => prev.map(item => item.id === tempId ? res.data! : item));
-      } else {
-        throw new Error("Failed");
-      }
+      } else throw new Error();
     } catch (err) {
       setData(prev => prev.filter(item => item.id !== tempId));
-      alert("Lỗi khi lưu dữ liệu. Vui lòng thử lại.");
-    } finally {
-      setIsSubmitting(false);
-    }
+      alert("Lỗi khi lưu dữ liệu.");
+    } finally { setIsSubmitting(false); }
   };
 
   const handleUpdate = async (formData: any) => {
     if (!editingItem) return;
     setIsSubmitting(true);
-    
     const previousData = [...data];
     setData(prev => prev.map(item => item.id === editingItem.id ? { ...item, ...formData } : item));
     setIsModalOpen(false);
     setEditingItem(null);
-
     try {
       const res = await gasService.updateRequest(editingItem.id, formData);
       if (!res.success) throw new Error();
     } catch (err) {
       setData(previousData);
       alert("Cập nhật thất bại.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    } finally { setIsSubmitting(false); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Bạn có chắc chắn muốn xóa?")) return;
-    
     const previousData = [...data];
     setData(prev => prev.filter(item => item.id !== id));
-
     try {
       const res = await gasService.deleteRequest(id);
       if (!res.success) throw new Error();
@@ -476,45 +358,31 @@ const App: React.FC = () => {
 
   const handleStatusChange = async (id: string, newStatus: Status) => {
     const previousData = [...data];
-    // Optimistically update status
-    setData(prev => prev.map(item => item.id === id ? { ...item, status: newStatus } : item));
-
+    setData(prev => prev.map(item => item.id === id ? { ...item, status: newStatus, approver: user?.fullname || user?.username } : item));
     try {
-      // Pass approver as part of updates
-      await gasService.updateRequest(id, { 
-        status: newStatus,
-        approver: user?.username 
-      });
+      await gasService.updateRequest(id, { status: newStatus, approver: user?.fullname || user?.username });
     } catch (err) {
       setData(previousData);
       alert("Lỗi khi cập nhật trạng thái");
     }
   };
 
-  // --- Dashboard Logic (HOOK) ---
   const availableWeeks = useMemo(() => {
     const weeks = new Set<number>();
     if (systemConfig.currentWeek) weeks.add(Number(systemConfig.currentWeek));
-    data.forEach(item => {
-      if (item.week) weeks.add(Number(item.week));
-    });
-    return Array.from(weeks).sort((a, b) => b - a); // Sort descending
+    data.forEach(item => { if (item.week) weeks.add(Number(item.week)); });
+    return Array.from(weeks).sort((a, b) => b - a);
   }, [data, systemConfig]);
 
-
-  // --- Filter & Pagination Logic (HOOK) ---
   const filteredData = useMemo(() => {
     return data.filter(item => {
       const sName = item.studentName || '';
       const sId = item.id || '';
-      
-      const matchesSearch = sName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            sId.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = sName.toLowerCase().includes(searchTerm.toLowerCase()) || sId.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesClass = filterClass ? item.class === filterClass : true;
       const matchesStatus = filterStatus ? item.status === filterStatus : true;
       const matchesWeek = filterWeek ? String(item.week) === String(filterWeek) : true;
       const permissionCheck = user?.role === Role.HS ? item.createdBy === user.username : true;
-
       return matchesSearch && matchesClass && matchesStatus && matchesWeek && permissionCheck;
     });
   }, [data, searchTerm, filterClass, filterStatus, filterWeek, user]);
@@ -525,49 +393,27 @@ const App: React.FC = () => {
     return filteredData.slice(start, start + pageSize);
   }, [filteredData, currentPage, pageSize]);
 
-
-  // --- Form Config Logic ---
   const formConfig = useMemo(() => {
     let baseConfig = LEAVE_REQUEST_CONFIG;
-    
-    if (systemConfig.classes.length > 0) {
-      baseConfig = baseConfig.map(col => 
-        col.key === 'class' ? { ...col, options: systemConfig.classes } : col
-      );
-    }
-    if (systemConfig.reasons.length > 0) {
-      baseConfig = baseConfig.map(col => 
-        col.key === 'reason' ? { ...col, options: systemConfig.reasons } : col
-      );
-    }
-
+    if (systemConfig.classes.length > 0) baseConfig = baseConfig.map(col => col.key === 'class' ? { ...col, options: systemConfig.classes } : col);
+    if (systemConfig.reasons.length > 0) baseConfig = baseConfig.map(col => col.key === 'reason' ? { ...col, options: systemConfig.reasons } : col);
     if (user && user.role === Role.HS) {
       let studentConfig = baseConfig.filter(c => !['status', 'studentName', 'class'].includes(c.key));
       const todayStr = new Date().toISOString().split('T')[0];
-      
       studentConfig = studentConfig.map(col => {
-        if (col.key === 'week') {
-          return { ...col, min: systemConfig.currentWeek };
-        }
-        if (col.key === 'fromDate') {
-          return { ...col, min: todayStr };
-        }
+        if (col.key === 'week') return { ...col, min: systemConfig.currentWeek };
+        if (col.key === 'fromDate') return { ...col, min: todayStr };
         return col;
       });
-
       return studentConfig;
     }
     return baseConfig;
   }, [systemConfig, user]);
 
-
-  // --- Render Login / Auth ---
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        {/* ... (Existing Auth UI) ... */}
         <div className="flex w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden min-h-[500px]">
-          {/* Left: Illustration */}
           <div className="hidden md:flex md:w-1/2 bg-primary p-12 flex-col justify-center text-white relative">
             <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
             <div className="relative z-10">
@@ -575,157 +421,33 @@ const App: React.FC = () => {
               <p className="text-lg opacity-90">Hệ thống quản lý nghỉ phép học sinh thông minh.</p>
             </div>
           </div>
-
-          {/* Right: Forms */}
           <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
-            
-            {/* Logo */}
-            <div className="flex justify-center mb-6">
-              <img src="./logo.png" alt="Logo" className="w-24 h-24 object-contain" />
-            </div>
-
-            {/* Header Text */}
+            <div className="flex justify-center mb-6"><img src="./logo.png" alt="Logo" className="w-24 h-24 object-contain" /></div>
             <div className="text-center md:text-left mb-6">
-              {authMode === 'login' && (
-                <>
-                  <h2 className="text-2xl font-bold text-gray-800">Đăng nhập</h2>
-                  <p className="text-gray-500">Chào mừng trở lại!</p>
-                </>
-              )}
-              {authMode === 'register' && (
-                <>
-                  <h2 className="text-2xl font-bold text-gray-800">Đăng ký</h2>
-                  <p className="text-gray-500">Tạo tài khoản mới</p>
-                </>
-              )}
-              {authMode === 'forgot' && (
-                <>
-                  <h2 className="text-2xl font-bold text-gray-800">Quên mật khẩu?</h2>
-                  <p className="text-gray-500">Nhập email để lấy lại mật khẩu</p>
-                </>
-              )}
+              <h2 className="text-2xl font-bold text-gray-800">{authMode === 'login' ? 'Đăng nhập' : authMode === 'register' ? 'Đăng ký' : 'Quên mật khẩu?'}</h2>
+              <p className="text-gray-500">{authMode === 'login' ? 'Chào mừng trở lại!' : authMode === 'register' ? 'Tạo tài khoản mới' : 'Nhập email để lấy lại mật khẩu'}</p>
             </div>
-
-            {/* Notification Messages */}
             {authError && <div className="mb-4 text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">{authError}</div>}
             {authSuccess && <div className="mb-4 text-green-600 text-sm bg-green-50 p-3 rounded-lg border border-green-100">{authSuccess}</div>}
-
-            {/* LOGIN FORM */}
+            
             {authMode === 'login' && (
               <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label>
-                  <div className="relative">
-                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input 
-                      type="text" 
-                      required
-                      className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input 
-                      type="password" 
-                      required
-                      className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </div>
-                  <div className="text-right mt-1">
-                    <button type="button" onClick={() => setAuthMode('forgot')} className="text-xs text-primary hover:underline">Quên mật khẩu?</button>
-                  </div>
-                </div>
-                <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors">
-                  {authLoading ? 'Đang xử lý...' : 'Đăng nhập'}
-                </button>
-                <div className="text-center text-sm text-gray-500 mt-4">
-                  Chưa có tài khoản? <button type="button" onClick={() => setAuthMode('register')} className="text-primary font-semibold hover:underline">Đăng ký ngay</button>
-                </div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label><div className="relative"><UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input type="text" required className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" value={username} onChange={(e) => setUsername(e.target.value)} /></div></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input type="password" required className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" value={password} onChange={(e) => setPassword(e.target.value)} /></div><div className="text-right mt-1"><button type="button" onClick={() => setAuthMode('forgot')} className="text-xs text-primary hover:underline">Quên mật khẩu?</button></div></div>
+                <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors">{authLoading ? 'Đang xử lý...' : 'Đăng nhập'}</button>
+                <div className="text-center text-sm text-gray-500 mt-4">Chưa có tài khoản? <button type="button" onClick={() => setAuthMode('register')} className="text-primary font-semibold hover:underline">Đăng ký ngay</button></div>
               </form>
             )}
-            
-            {/* REGISTER FORM */}
             {authMode === 'register' && (
               <form onSubmit={handleRegister} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
-                  <input type="text" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
-                    value={regFullname} onChange={e => setRegFullname(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input type="email" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
-                    value={regEmail} onChange={e => setRegEmail(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label>
-                  <input type="text" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
-                    value={regUsername} onChange={e => setRegUsername(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
-                  <input type="password" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
-                    value={regPassword} onChange={e => setRegPassword(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bạn là?</label>
-                  <div className="flex space-x-4">
-                    <button type="button" onClick={() => { setRegUserType('HS'); setRegClassInfo(''); }}
-                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${regUserType === 'HS' ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>Học sinh</button>
-                    <button type="button" onClick={() => { setRegUserType('OTHER'); setRegClassInfo(''); }}
-                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${regUserType === 'OTHER' ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>Khác</button>
-                  </div>
-                </div>
-                {regUserType === 'HS' ? (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Lớp</label>
-                    <select className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary"
-                      value={regClassInfo} onChange={(e) => setRegClassInfo(e.target.value)} required>
-                      <option value="">-- Chọn lớp --</option>
-                      {systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Thông tin thêm (Không bắt buộc)</label>
-                    <input type="text" className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" 
-                      value={regClassInfo} onChange={e => setRegClassInfo(e.target.value)} placeholder="Ví dụ: GVCN lớp 10A1..." />
-                  </div>
-                )}
-                <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors mt-2">
-                  {authLoading ? 'Đang đăng ký...' : 'Đăng ký'}
-                </button>
-                <div className="text-center text-sm mt-4">
-                  <button type="button" onClick={() => setAuthMode('login')} className="text-gray-500 hover:text-gray-800">Quay lại đăng nhập</button>
-                </div>
-              </form>
-            )}
-            
-            {authMode === 'forgot' && (
-               <form onSubmit={handleForgot} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email đã đăng ký</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input type="email" required className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
-                      value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} />
-                  </div>
-                </div>
-                <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors">
-                  {authLoading ? 'Đang gửi...' : 'Gửi mật khẩu mới'}
-                </button>
-                <div className="text-center text-sm mt-4">
-                  <button type="button" onClick={() => setAuthMode('login')} className="flex items-center justify-center w-full text-gray-500 hover:text-gray-800">
-                    <ArrowLeft size={16} className="mr-1" /> Quay lại
-                  </button>
-                </div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label><input type="text" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regFullname} onChange={e => setRegFullname(e.target.value)} /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regEmail} onChange={e => setRegEmail(e.target.value)} /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label><input type="text" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regUsername} onChange={e => setRegUsername(e.target.value)} /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label><input type="password" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regPassword} onChange={e => setRegPassword(e.target.value)} /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-2">Bạn là?</label><div className="flex space-x-4"><button type="button" onClick={() => { setRegUserType('HS'); setRegClassInfo(''); }} className={`flex-1 py-2 rounded-lg border text-sm font-medium ${regUserType === 'HS' ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600'}`}>Học sinh</button><button type="button" onClick={() => { setRegUserType('OTHER'); setRegClassInfo(''); }} className={`flex-1 py-2 rounded-lg border text-sm font-medium ${regUserType === 'OTHER' ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600'}`}>Khác</button></div></div>
+                {regUserType === 'HS' ? (<div><label className="block text-sm font-medium text-gray-700 mb-1">Lớp</label><select className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regClassInfo} onChange={(e) => setRegClassInfo(e.target.value)} required><option value="">-- Chọn lớp --</option>{systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}</select></div>) : (<div><label className="block text-sm font-medium text-gray-700 mb-1">Thông tin thêm</label><input type="text" className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regClassInfo} onChange={e => setRegClassInfo(e.target.value)} /></div>)}
+                <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors mt-2">{authLoading ? 'Đang đăng ký...' : 'Đăng ký'}</button>
+                <div className="text-center text-sm mt-4"><button type="button" onClick={() => setAuthMode('login')} className="text-gray-500 hover:text-gray-800">Quay lại đăng nhập</button></div>
               </form>
             )}
           </div>
@@ -734,282 +456,92 @@ const App: React.FC = () => {
     );
   }
 
-  // --- Main App Layout ---
   const canCreate = user.role === Role.HS || user.role === Role.ADMIN || user.role === Role.USER;
   const canApprove = PERMISSIONS[user.role].canApprove;
   const canDelete = PERMISSIONS[user.role].canDelete;
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden font-sans">
-      {/* Sidebar - Desktop */}
-      <aside className={`hidden md:flex flex-col bg-white border-r border-gray-200 transition-all duration-300 z-20 ${sidebarCollapsed ? 'w-0 overflow-hidden border-none' : 'w-64'}`}>
-        <div className="h-16 flex items-center px-6 border-b border-gray-100 min-w-[16rem]">
-          <img src="./logo.png" alt="Logo" className="w-10 h-10 object-contain mr-3" />
-          <span className="text-xl font-bold text-gray-800 truncate">{systemConfig.schoolName}</span>
-        </div>
-        
+      <aside className={`hidden md:flex flex-col bg-white border-r border-gray-200 transition-all duration-300 z-20 ${sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'}`}>
+        <div className="h-16 flex items-center px-6 border-b border-gray-100 min-w-[16rem]"><img src="./logo.png" alt="Logo" className="w-10 h-10 object-contain mr-3" /><span className="text-xl font-bold text-gray-800 truncate">{systemConfig.schoolName}</span></div>
         <nav className="flex-1 p-4 space-y-1 min-w-[16rem]">
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'dashboard' ? 'bg-blue-50 text-primary font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            <LayoutDashboard size={20} />
-            <span>Tổng quan</span>
-          </button>
-          
-          <button 
-            onClick={() => setActiveTab('requests')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'requests' ? 'bg-blue-50 text-primary font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            <FileText size={20} />
-            <span>Đơn xin phép</span>
-          </button>
-
-          {user.role === Role.ADMIN && (
-            <button 
-              onClick={() => setActiveTab('settings')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'settings' ? 'bg-blue-50 text-primary font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              <Settings size={20} />
-              <span>Cài đặt hệ thống</span>
-            </button>
-          )}
+          <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'dashboard' ? 'bg-blue-50 text-primary font-medium' : 'text-gray-600 hover:bg-gray-50'}`}><LayoutDashboard size={20} /><span>Tổng quan</span></button>
+          <button onClick={() => setActiveTab('requests')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'requests' ? 'bg-blue-50 text-primary font-medium' : 'text-gray-600 hover:bg-gray-50'}`}><FileText size={20} /><span>Đơn xin phép</span></button>
+          {user.role === Role.ADMIN && (<button onClick={() => setActiveTab('settings')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'settings' ? 'bg-blue-50 text-primary font-medium' : 'text-gray-600 hover:bg-gray-50'}`}><Settings size={20} /><span>Cài đặt hệ thống</span></button>)}
         </nav>
-
-        <div className="p-4 border-t border-gray-100 min-w-[16rem]">
-          <div className="flex items-center space-x-3 mb-4 px-2">
-            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold uppercase shrink-0">
-              {user.fullname ? user.fullname.charAt(0) : 'U'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{user.fullname}</p>
-              <p className="text-xs text-gray-500 truncate" title={user.class || user.role}>
-                {user.class || user.role}
-              </p>
-            </div>
-          </div>
-          <button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-            <LogOut size={16} />
-            <span>Đăng xuất</span>
-          </button>
-        </div>
+        <div className="p-4 border-t border-gray-100 min-w-[16rem]"><div className="flex items-center space-x-3 mb-4 px-2"><div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold uppercase shrink-0">{user.fullname ? user.fullname.charAt(0) : 'U'}</div><div className="flex-1 min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{user.fullname}</p><p className="text-xs text-gray-500 truncate">{user.class || user.role}</p></div></div><button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"><LogOut size={16} /><span>Đăng xuất</span></button></div>
       </aside>
 
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSidebarOpen(false)}></div>
-      )}
-      
-      {/* Mobile Sidebar */}
+      {sidebarOpen && (<div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSidebarOpen(false)}></div>)}
       <aside className={`fixed top-0 left-0 bottom-0 w-64 bg-white z-40 transform transition-transform duration-300 md:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-         <div className="p-4 flex items-center border-b space-x-2">
-            <img src="./logo.png" alt="Logo" className="w-8 h-8 object-contain" />
-            <span className="font-bold text-xl flex-1">{systemConfig.schoolName}</span>
-            <button onClick={() => setSidebarOpen(false)}><X size={24} /></button>
-         </div>
+         <div className="p-4 flex items-center border-b space-x-2"><img src="./logo.png" alt="Logo" className="w-8 h-8 object-contain" /><span className="font-bold text-xl flex-1 truncate">{systemConfig.schoolName}</span><button onClick={() => setSidebarOpen(false)}><X size={24} /></button></div>
          <nav className="p-4 space-y-2">
-            <button onClick={() => {setActiveTab('dashboard'); setSidebarOpen(false)}} className="block w-full text-left p-3 rounded hover:bg-gray-100">Tổng quan</button>
-            <button onClick={() => {setActiveTab('requests'); setSidebarOpen(false)}} className="block w-full text-left p-3 rounded hover:bg-gray-100">Đơn xin phép</button>
-            <button onClick={handleLogout} className="block w-full text-left p-3 rounded text-red-500 hover:bg-red-50">Đăng xuất</button>
+            <button onClick={() => {setActiveTab('dashboard'); setSidebarOpen(false)}} className={`w-full flex items-center space-x-3 p-3 rounded-lg ${activeTab === 'dashboard' ? 'bg-blue-50 text-primary' : ''}`}><LayoutDashboard size={20}/> <span>Tổng quan</span></button>
+            <button onClick={() => {setActiveTab('requests'); setSidebarOpen(false)}} className={`w-full flex items-center space-x-3 p-3 rounded-lg ${activeTab === 'requests' ? 'bg-blue-50 text-primary' : ''}`}><FileText size={20}/> <span>Đơn xin phép</span></button>
+            {user.role === Role.ADMIN && (<button onClick={() => {setActiveTab('settings'); setSidebarOpen(false)}} className={`w-full flex items-center space-x-3 p-3 rounded-lg ${activeTab === 'settings' ? 'bg-blue-50 text-primary' : ''}`}><Settings size={20}/> <span>Cài đặt hệ thống</span></button>)}
+            <hr className="my-2 border-gray-100" />
+            <button onClick={handleLogout} className="w-full flex items-center space-x-3 p-3 rounded-lg text-red-500 hover:bg-red-50"><LogOut size={20}/> <span>Đăng xuất</span></button>
          </nav>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Topbar */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shrink-0 no-print">
           <div className="flex items-center">
-            {/* Mobile Toggle */}
-            <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-600 mr-2">
-              <Menu size={24} />
-            </button>
-            
-            {/* Desktop Sidebar Toggle */}
-            <button 
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
-              className="hidden md:flex text-gray-600 mr-4 hover:bg-gray-100 p-2 rounded-lg transition-colors"
-              title={sidebarCollapsed ? "Mở menu" : "Thu gọn menu"}
-            >
-              <Menu size={24} />
-            </button>
-
-            <h2 className="text-lg font-semibold text-gray-800">
-              {activeTab === 'dashboard' ? 'Tổng quan hệ thống' : activeTab === 'requests' ? 'Quản lý đơn xin phép' : 'Cài đặt'}
-            </h2>
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-600 mr-2"><Menu size={24} /></button>
+            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="hidden md:flex text-gray-600 mr-4 hover:bg-gray-100 p-2 rounded-lg transition-colors"><Menu size={24} /></button>
+            <h2 className="text-lg font-semibold text-gray-800">{activeTab === 'dashboard' ? 'Tổng quan' : activeTab === 'requests' ? 'Quản lý đơn' : 'Cài đặt'}</h2>
           </div>
-          
           <div className="flex items-center space-x-4">
-             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${user.role === Role.ADMIN ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                {user.role}
-             </span>
+             <div className="hidden sm:flex items-center text-xs font-bold text-gray-400 border px-2 py-1 rounded bg-gray-50 md:hidden"><Smartphone size={14} className="mr-1"/> Xoay ngang để xem tốt hơn</div>
+             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${user.role === Role.ADMIN ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{user.role}</span>
           </div>
         </header>
 
-        {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 main-content">
-          
-          {/* DASHBOARD VIEW */}
           {activeTab === 'dashboard' && (
             <div className="max-w-6xl mx-auto">
-              {/* Filter Row */}
               <div className="flex justify-between items-center mb-6 no-print">
-                 <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
-                    <Calendar size={18} className="text-primary" />
-                    <span className="text-sm text-gray-600 font-medium">Đang xem dữ liệu:</span>
-                    <select 
-                      className="text-sm font-bold text-gray-800 outline-none bg-transparent cursor-pointer"
-                      value={selectedDashboardWeek}
-                      onChange={(e) => setSelectedDashboardWeek(Number(e.target.value))}
-                    >
-                      {availableWeeks.map(w => (
-                         <option key={w} value={w}>Tuần {w}</option>
-                      ))}
+                 <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm"><Calendar size={18} className="text-primary" /><span className="text-sm text-gray-600 font-medium">Đang xem dữ liệu:</span>
+                    <select className="text-sm font-bold text-gray-800 outline-none bg-transparent cursor-pointer" value={selectedDashboardWeek} onChange={(e) => setSelectedDashboardWeek(Number(e.target.value))}>
+                      {availableWeeks.map(w => (<option key={w} value={w}>Tuần {w}</option>))}
                       {availableWeeks.length === 0 && <option value={1}>Tuần 1</option>}
                     </select>
                  </div>
               </div>
-
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 no-print">
-                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <p className="text-sm text-gray-500 mb-1">Tổng đơn (Tuần {selectedDashboardWeek})</p>
-                    <p className="text-2xl font-bold text-gray-800">{data.filter(r => Number(r.week) === selectedDashboardWeek).length}</p>
-                 </div>
-                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <p className="text-sm text-gray-500 mb-1">Chờ duyệt</p>
-                    <p className="text-2xl font-bold text-yellow-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.PENDING).length}</p>
-                 </div>
-                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <p className="text-sm text-gray-500 mb-1">Đã duyệt</p>
-                    <p className="text-2xl font-bold text-green-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.APPROVED).length}</p>
-                 </div>
-                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <p className="text-sm text-gray-500 mb-1">Từ chối</p>
-                    <p className="text-2xl font-bold text-red-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.REJECTED).length}</p>
-                 </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 no-print">
+                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs text-gray-500 mb-1">Tổng đơn (T{selectedDashboardWeek})</p><p className="text-xl font-bold text-gray-800">{data.filter(r => Number(r.week) === selectedDashboardWeek).length}</p></div>
+                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs text-gray-500 mb-1">Chờ duyệt</p><p className="text-xl font-bold text-yellow-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.PENDING).length}</p></div>
+                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs text-gray-500 mb-1">Đã duyệt</p><p className="text-xl font-bold text-green-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.APPROVED).length}</p></div>
+                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs text-gray-500 mb-1">Từ chối</p><p className="text-xl font-bold text-red-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.REJECTED).length}</p></div>
               </div>
-
-              {user.role === Role.VIEWER && (
-                <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-lg flex items-center no-print">
-                  <ShieldAlert className="w-5 h-5 mr-2" />
-                  <span>Tài khoản của bạn đang ở chế độ <b>Viewer</b> (chỉ xem). Vui lòng liên hệ Admin để được cấp quyền tạo đơn hoặc duyệt đơn.</span>
-                </div>
-              )}
-
-              <DashboardChart 
-                allData={data} 
-                systemConfig={systemConfig} 
-                selectedWeek={selectedDashboardWeek} 
-              />
+              <DashboardChart allData={data} systemConfig={systemConfig} selectedWeek={selectedDashboardWeek} />
             </div>
           )}
 
-          {/* REQUESTS LIST VIEW */}
           {activeTab === 'requests' && (
             <div className="max-w-6xl mx-auto h-full flex flex-col">
-              
-              {/* EXPORT TOOLBAR */}
               <div className="bg-white p-2 rounded-t-xl border-b border-gray-200 flex justify-end gap-2 items-center mb-0 no-print">
-                  <button onClick={exportToCSV} className="flex items-center space-x-1 px-3 py-2 text-sm text-green-700 bg-white border border-green-200 rounded hover:bg-green-50" title="Xuất CSV/Excel">
-                    <FileSpreadsheet size={18} />
-                  </button>
-                  <button onClick={exportToPDF} className="flex items-center space-x-1 px-3 py-2 text-sm text-red-700 bg-white border border-red-200 rounded hover:bg-red-50" title="Xuất PDF">
-                    <FileDown size={18} />
-                  </button>
-                  <button onClick={handlePrint} className="flex items-center space-x-1 px-3 py-2 text-sm text-blue-700 bg-white border border-blue-200 rounded hover:bg-blue-50" title="In">
-                    <Printer size={18} />
-                  </button>
-                  
-                  {/* Column Toggle Dropdown */}
-                  <div className="relative" ref={colMenuRef}>
-                    <button 
-                      onClick={() => setIsColMenuOpen(!isColMenuOpen)}
-                      className="flex items-center space-x-1 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded hover:bg-gray-50" 
-                      title="Chọn cột hiển thị"
-                    >
-                       <Columns size={18} />
-                    </button>
-                    {isColMenuOpen && (
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 shadow-lg rounded-md z-50 p-2">
-                        <div className="text-xs font-bold text-gray-500 mb-2 px-2">HIỂN THỊ CỘT</div>
-                        {AVAILABLE_COLUMNS.map(col => (
-                          <label key={col.key} className="flex items-center px-2 py-1.5 hover:bg-gray-50 cursor-pointer rounded">
-                            <input 
-                              type="checkbox" 
-                              checked={visibleColumns.includes(col.key)}
-                              onChange={() => toggleColumn(col.key)}
-                              className="mr-2 rounded text-primary focus:ring-primary"
-                            />
-                            <span className="text-sm text-gray-700">{col.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
+                  <button onClick={exportToCSV} className="p-2 text-green-700 hover:bg-green-50 rounded border border-green-100" title="Xuất CSV"><FileSpreadsheet size={18} /></button>
+                  <button onClick={exportToPDF} className="p-2 text-red-700 hover:bg-red-50 rounded border border-red-100" title="Xuất PDF"><FileDown size={18} /></button>
+                  <button onClick={handlePrint} className="p-2 text-blue-700 hover:bg-blue-50 rounded border border-blue-100" title="In"><Printer size={18} /></button>
+                  <div className="relative" ref={colMenuRef}><button onClick={() => setIsColMenuOpen(!isColMenuOpen)} className="p-2 text-gray-700 hover:bg-gray-50 rounded border border-gray-200" title="Cột hiển thị"><Columns size={18} /></button>
+                    {isColMenuOpen && (<div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 shadow-lg rounded-md z-50 p-2"><div className="text-xs font-bold text-gray-500 mb-2 px-2 uppercase">Hiển thị cột</div>{AVAILABLE_COLUMNS.map(col => (<label key={col.key} className="flex items-center px-2 py-1.5 hover:bg-gray-50 cursor-pointer rounded"><input type="checkbox" checked={visibleColumns.includes(col.key)} onChange={() => toggleColumn(col.key)} className="mr-2 text-primary focus:ring-primary"/><span className="text-sm text-gray-700">{col.label}</span></label>))}</div>)}
                   </div>
               </div>
 
-              {/* SEARCH TOOLBAR */}
               <div className="bg-white p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
-                <div className="flex flex-1 items-center space-x-2">
-                   <div className="relative flex-1 max-w-sm">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                      <input 
-                        type="text" 
-                        placeholder="Tìm kiếm..." 
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                   </div>
-                   
-                   {/* Week Filter */}
-                   <select 
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none bg-white"
-                      value={filterWeek}
-                      onChange={(e) => setFilterWeek(e.target.value)}
-                   >
-                     <option value="">Tất cả tuần</option>
-                     {availableWeeks.map(w => <option key={w} value={w}>Tuần {w}</option>)}
-                   </select>
-
-                   {/* Class Filter */}
-                   <select 
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none bg-white"
-                      value={filterClass}
-                      onChange={(e) => setFilterClass(e.target.value)}
-                   >
-                     <option value="">Tất cả lớp</option>
-                     {systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}
-                   </select>
-
-                   {/* Status Filter */}
-                   <select 
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none bg-white"
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                   >
-                     <option value="">Tất cả trạng thái</option>
-                     {Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}
-                   </select>
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                   <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input type="text" placeholder="Tìm tên, ID..." className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:border-primary outline-none text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+                   <select className="border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none" value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)}><option value="">Mọi tuần</option>{availableWeeks.map(w => <option key={w} value={w}>Tuần {w}</option>)}</select>
+                   <select className="border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none" value={filterClass} onChange={(e) => setFilterClass(e.target.value)}><option value="">Mọi lớp</option>{systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
+                   <select className="border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="">Mọi trạng thái</option>{Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}</select>
                 </div>
-
-                {canCreate && (
-                  <button 
-                    onClick={() => { 
-                      setEditingItem(null); 
-                      setIsModalOpen(true); 
-                    }}
-                    className="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 shadow-sm transition-colors"
-                  >
-                    <Plus size={18} />
-                    <span>Tạo đơn mới</span>
-                  </button>
-                )}
+                {canCreate && (<button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} className="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center space-x-2 shadow-sm"><Plus size={18} /><span>Tạo đơn</span></button>)}
               </div>
 
-              {/* Table Container - Flex grow and scrollable */}
-              <div className="bg-white border-x border-gray-200 flex-1 overflow-hidden flex flex-col table-container">
-                <div className="flex-1 overflow-auto">
+              <div className="bg-white border-x border-gray-200 flex-1 overflow-hidden flex flex-col">
+                {/* Desktop Table View */}
+                <div className="hidden md:block flex-1 overflow-auto">
                   <table className="w-full text-sm text-left text-gray-500 relative">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b sticky top-0 z-10">
                       <tr>
@@ -1018,88 +550,32 @@ const App: React.FC = () => {
                         {visibleColumns.includes('class') && <th className="px-6 py-3 bg-gray-50">Lớp</th>}
                         {visibleColumns.includes('date') && <th className="px-6 py-3 bg-gray-50">Ngày nghỉ</th>}
                         {visibleColumns.includes('reason') && <th className="px-6 py-3 bg-gray-50">Lý do</th>}
-                        {visibleColumns.includes('detail') && <th className="px-6 py-3 bg-gray-50">Chi tiết</th>}
                         {visibleColumns.includes('attachment') && <th className="px-6 py-3 text-center bg-gray-50">Minh chứng</th>}
                         {visibleColumns.includes('status') && <th className="px-6 py-3 bg-gray-50">Trạng thái</th>}
+                        {visibleColumns.includes('approver') && <th className="px-6 py-3 bg-gray-50">Người duyệt</th>}
                         {(canApprove || canDelete) && <th className="px-6 py-3 text-center bg-gray-50 no-print">Hành động</th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {paginatedData.length === 0 ? (
-                        <tr><td colSpan={10} className="px-6 py-8 text-center text-gray-400">Không có dữ liệu</td></tr>
-                      ) : (
+                      {paginatedData.length === 0 ? (<tr><td colSpan={10} className="px-6 py-8 text-center text-gray-400">Không có dữ liệu</td></tr>) : (
                         paginatedData.map((item) => (
                           <tr key={item.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
-                            {visibleColumns.includes('week') && <td className="px-6 py-4 text-center font-bold text-gray-400">{item.week || '-'}</td>}
+                            {visibleColumns.includes('week') && <td className="px-6 py-4 text-center font-bold text-gray-400">{item.week}</td>}
                             {visibleColumns.includes('studentName') && <td className="px-6 py-4 font-medium text-gray-900">{item.studentName}</td>}
                             {visibleColumns.includes('class') && <td className="px-6 py-4">{item.class}</td>}
-                            {visibleColumns.includes('date') && (
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate && ` - ${formatDateDisplay(item.toDate)}`}
-                              </td>
-                            )}
-                            {visibleColumns.includes('reason') && <td className="px-6 py-4 truncate max-w-[150px]">{item.reason}</td>}
-                            {visibleColumns.includes('detail') && <td className="px-6 py-4 truncate max-w-[150px]">{item.detail}</td>}
-                            {visibleColumns.includes('attachment') && (
-                              <td className="px-6 py-4 text-center">
-                                {item.attachmentUrl ? (
-                                  <button 
-                                    onClick={() => setPreviewImageUrl(item.attachmentUrl || '')}
-                                    className="inline-flex items-center justify-center p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors no-print"
-                                    title="Xem minh chứng"
-                                  >
-                                    <Eye size={18} />
-                                  </button>
-                                ) : (
-                                  <span className="text-gray-300">-</span>
-                                )}
-                              </td>
-                            )}
-                            {visibleColumns.includes('status') && (
-                              <td className="px-6 py-4">
-                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                                    ${item.status === Status.APPROVED ? 'bg-green-100 text-green-700' : 
-                                      item.status === Status.REJECTED ? 'bg-red-100 text-red-700' : 
-                                      'bg-yellow-100 text-yellow-700'}`}>
-                                    {item.status}
-                                  </span>
-                              </td>
-                            )}
+                            {visibleColumns.includes('date') && <td className="px-6 py-4 whitespace-nowrap">{formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate && ` - ${formatDateDisplay(item.toDate)}`}</td>}
+                            {visibleColumns.includes('reason') && <td className="px-6 py-4 truncate max-w-[120px]" title={item.reason}>{item.reason}</td>}
+                            {visibleColumns.includes('attachment') && (<td className="px-6 py-4 text-center">{item.attachmentUrl ? (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="p-2 text-blue-500 hover:bg-blue-50 rounded-full no-print" title="Xem ảnh"><Eye size={18} /></button>) : (<span className="text-gray-300">-</span>)}</td>)}
+                            {visibleColumns.includes('status') && (<td className="px-6 py-4"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${item.status === Status.APPROVED ? 'bg-green-100 text-green-700' : item.status === Status.REJECTED ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status}</span></td>)}
+                            {visibleColumns.includes('approver') && <td className="px-6 py-4 text-xs italic text-gray-500">{item.approver || (item.status === Status.APPROVED ? 'Hệ thống' : '-')}</td>}
                             {(canApprove || canDelete) && (
                               <td className="px-6 py-4 text-center no-print">
                                 <div className="flex items-center justify-center space-x-2">
                                   {canApprove && item.status === Status.PENDING && (
-                                    <>
-                                      <button 
-                                        onClick={() => handleStatusChange(item.id, Status.APPROVED)} 
-                                        className="text-green-600 hover:text-green-800 p-1" title="Duyệt"
-                                      >
-                                        <CheckCircle size={18} />
-                                      </button>
-                                      <button 
-                                        onClick={() => handleStatusChange(item.id, Status.REJECTED)} 
-                                        className="text-red-600 hover:text-red-800 p-1" title="Từ chối"
-                                      >
-                                        <XCircle size={18} />
-                                      </button>
-                                    </>
+                                    <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="text-green-600 hover:text-green-800 p-1"><CheckCircle size={18} /></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="text-red-600 hover:text-red-800 p-1"><XCircle size={18} /></button></>
                                   )}
-                                  {canDelete && (
-                                    <button 
-                                      onClick={() => handleDelete(item.id)}
-                                      className="text-gray-400 hover:text-red-500 p-1" title="Xóa"
-                                    >
-                                      <Trash2 size={18} />
-                                    </button>
-                                  )}
-                                  {user.username === item.createdBy && item.status === Status.PENDING && (
-                                     <button 
-                                      onClick={() => { setEditingItem(item); setIsModalOpen(true); }}
-                                      className="text-blue-500 hover:text-blue-700 p-1" title="Sửa"
-                                     >
-                                       <Edit2 size={18} />
-                                     </button>
-                                  )}
+                                  {canDelete && (<button onClick={() => handleDelete(item.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={18} /></button>)}
+                                  {user.username === item.createdBy && item.status === Status.PENDING && (<button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} className="text-blue-500 p-1"><Edit2 size={18} /></button>)}
                                 </div>
                               </td>
                             )}
@@ -1109,101 +585,57 @@ const App: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
-              </div>
 
-              {/* Pagination Controls */}
-              <div className="bg-white p-4 border-t border-gray-200 rounded-b-xl flex flex-col sm:flex-row justify-between items-center gap-4 pagination-controls">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <span>Hiển thị</span>
-                  <select 
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    className="border border-gray-300 rounded p-1 outline-none focus:border-primary"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                  <span>dòng / trang</span>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600 mr-2">
-                    Trang {currentPage} / {totalPages || 1}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage >= totalPages}
-                    className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
+                {/* Mobile Card View */}
+                <div className="md:hidden flex-1 overflow-auto bg-gray-50 p-2 space-y-3 no-print">
+                  {paginatedData.length === 0 ? (<div className="text-center py-10 text-gray-400">Không có dữ liệu</div>) : (
+                    paginatedData.map(item => (
+                      <div key={item.id} className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 relative overflow-hidden">
+                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${item.status === Status.APPROVED ? 'bg-green-500' : item.status === Status.REJECTED ? 'bg-red-500' : 'bg-yellow-500'}`}></div>
+                        <div className="flex justify-between items-start mb-2">
+                           <div className="flex items-center space-x-2">
+                              <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded">T{item.week}</span>
+                              <h4 className="font-bold text-gray-800">{item.studentName}</h4>
+                           </div>
+                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${item.status === Status.APPROVED ? 'bg-green-100 text-green-700' : item.status === Status.REJECTED ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-y-2 text-sm mb-3">
+                           <div><span className="text-gray-400 text-xs block uppercase font-bold tracking-tight">Lớp</span> <span>{item.class}</span></div>
+                           <div><span className="text-gray-400 text-xs block uppercase font-bold tracking-tight">Lý do</span> <span className="truncate block">{item.reason}</span></div>
+                           <div className="col-span-2"><span className="text-gray-400 text-xs block uppercase font-bold tracking-tight">Thời gian</span> <span>{formatDateDisplay(item.fromDate)} - {formatDateDisplay(item.toDate)}</span></div>
+                           {item.approver && (<div className="col-span-2"><span className="text-gray-400 text-xs block uppercase font-bold tracking-tight">Người duyệt</span> <span className="italic text-gray-600">{item.approver}</span></div>)}
+                        </div>
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-50">
+                           <div className="flex space-x-2">
+                             {item.attachmentUrl && (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="flex items-center space-x-1 text-blue-500 text-xs font-bold bg-blue-50 px-2 py-1 rounded"><Eye size={14}/> <span>Minh chứng</span></button>)}
+                           </div>
+                           <div className="flex space-x-1">
+                             {canApprove && item.status === Status.PENDING && (
+                               <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="p-1.5 bg-green-50 text-green-600 rounded-lg"><CheckCircle size={18}/></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="p-1.5 bg-red-50 text-red-600 rounded-lg"><XCircle size={18}/></button></>
+                             )}
+                             {canDelete && (<button onClick={() => handleDelete(item.id)} className="p-1.5 bg-gray-50 text-gray-400 rounded-lg"><Trash2 size={18}/></button>)}
+                             {user.username === item.createdBy && item.status === Status.PENDING && (<button onClick={() => {setEditingItem(item); setIsModalOpen(true);}} className="p-1.5 bg-blue-50 text-blue-500 rounded-lg"><Edit2 size={18}/></button>)}
+                           </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
+              <div className="bg-white p-4 border-t border-gray-200 rounded-b-xl flex flex-col sm:flex-row justify-between items-center gap-4 pagination-controls no-print">
+                <div className="flex items-center space-x-2 text-sm text-gray-600"><span>Hiển thị</span><select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="border rounded p-1"><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option></select><span>dòng</span></div>
+                <div className="flex items-center space-x-2"><span className="text-sm text-gray-600">Trang {currentPage} / {totalPages || 1}</span><button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-30"><ChevronLeft size={20} /></button><button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage >= totalPages} className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-30"><ChevronRight size={20} /></button></div>
+              </div>
             </div>
           )}
 
-          {/* SETTINGS VIEW - SECURED */}
-          {activeTab === 'settings' && user.role === Role.ADMIN && (
-            <div className="max-w-4xl mx-auto space-y-8">
-              <UserManagement users={allUsers} onRefresh={loadData} classes={systemConfig.classes} />
-              <SystemSettings config={systemConfig} onRefresh={loadData} />
-            </div>
-          )}
-          
-          {activeTab === 'settings' && user.role !== Role.ADMIN && (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
-               <ShieldAlert size={48} className="mb-2 text-red-400" />
-               <p>Bạn không có quyền truy cập khu vực này.</p>
-            </div>
-          )}
-
+          {activeTab === 'settings' && user.role === Role.ADMIN && (<div className="max-w-4xl mx-auto space-y-8"><UserManagement users={allUsers} onRefresh={loadData} classes={systemConfig.classes} /><SystemSettings config={systemConfig} onRefresh={loadData} /></div>)}
         </div>
       </main>
 
-      {/* Modal for Create/Edit */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="text-lg font-bold text-gray-800">
-                {editingItem ? 'Chỉnh sửa đơn' : 'Tạo đơn xin phép mới'}
-              </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto">
-              <DynamicForm 
-                config={formConfig}
-                initialData={editingItem || { week: systemConfig.currentWeek }} 
-                onSubmit={editingItem ? handleUpdate : handleCreate}
-                onCancel={() => setIsModalOpen(false)}
-                isSubmitting={isSubmitting}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Image Preview Modal */}
-      <ImagePreviewModal 
-        imageUrl={previewImageUrl} 
-        onClose={() => setPreviewImageUrl(null)} 
-      />
-
+      {isModalOpen && (<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col"><div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center"><h3 className="text-lg font-bold text-gray-800">{editingItem ? 'Sửa đơn' : 'Tạo đơn mới'}</h3><button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button></div><div className="p-6 overflow-y-auto"><DynamicForm config={formConfig} initialData={editingItem || { week: systemConfig.currentWeek }} onSubmit={editingItem ? handleUpdate : handleCreate} onCancel={() => setIsModalOpen(false)} isSubmitting={isSubmitting} /></div></div></div>)}
+      <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
     </div>
   );
 };
