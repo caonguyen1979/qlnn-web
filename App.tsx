@@ -33,7 +33,8 @@ import {
   GraduationCap,
   Mail,
   ArrowLeft,
-  Briefcase
+  Briefcase,
+  ChevronDown
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
@@ -369,7 +370,7 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   
-                  {/* Chỉ hiển thị nhập Lớp nếu là Học sinh hoặc GVCN */}
+                  {/* Chỉ hiển thị nhập Lớp nếu là Học sinh hoặc GVCN - Sử dụng Dropdown */}
                   {(regRole === Role.HS || regRole === Role.GVCN) && (
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
@@ -377,7 +378,16 @@ const App: React.FC = () => {
                       </label>
                       <div className="relative group">
                         <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={18} />
-                        <input type="text" placeholder="Ví dụ: 10A1" className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium text-sm" value={regClass} onChange={(e) => setRegClass(e.target.value)} />
+                        <select 
+                          required 
+                          className="w-full pl-11 pr-10 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium text-sm appearance-none cursor-pointer"
+                          value={regClass} 
+                          onChange={(e) => setRegClass(e.target.value)}
+                        >
+                          <option value="">-- Chọn lớp --</option>
+                          {systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
                       </div>
                     </div>
                   )}
