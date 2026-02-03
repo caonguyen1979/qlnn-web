@@ -247,32 +247,42 @@ const App: React.FC = () => {
           <div className="hidden md:flex md:w-1/2 bg-primary p-12 flex-col justify-center text-white relative">
             <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
             <div className="relative z-10 flex flex-col items-center text-center">
-              <div className="w-24 h-24 mb-6">
-                <img src="logo.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=Logo' }} />
-              </div>
-              <h1 className="text-4xl font-black mb-6 leading-tight">{systemConfig.schoolName}</h1>
+              <h1 className="text-4xl font-black mb-6 leading-tight uppercase tracking-tight">{systemConfig.schoolName}</h1>
+              <div className="w-16 h-1.5 bg-white mb-6 rounded-full"></div>
               <p className="text-lg opacity-90 font-medium">Hệ thống quản lý nghỉ phép thông minh cho nhà trường.</p>
             </div>
           </div>
           <div className="w-full md:w-1/2 p-10 md:p-14 flex flex-col justify-center">
-            <div className="text-center mb-10 md:hidden">
-              <div className="w-20 h-20 mx-auto mb-4">
-                <img src="logo.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/80?text=Logo' }} />
+            {/* Logo di chuyển sang thẻ bên phải, nằm trên tiêu đề Đăng nhập */}
+            <div className="flex flex-col items-start mb-8">
+              <div className="w-24 h-24 mb-6">
+                <img src="logo.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=Logo' }} />
               </div>
-              <h1 className="text-2xl font-black text-gray-800">{systemConfig.schoolName}</h1>
+              <h2 className="text-4xl font-black text-gray-800 tracking-tight">Đăng nhập</h2>
             </div>
-            <h2 className="text-3xl font-black text-gray-800 mb-6">Đăng nhập</h2>
-            {authError && <div className="mb-4 text-red-500 font-bold bg-red-50 p-3 rounded-xl border border-red-100 flex items-center"><XCircle size={18} className="mr-2"/>{authError}</div>}
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div className="relative">
-                <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                <input type="text" placeholder="Tên đăng nhập" required className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary transition-all" value={username} onChange={(e) => setUsername(e.target.value)} />
+
+            {authError && <div className="mb-6 text-red-500 font-bold bg-red-50 p-4 rounded-xl border border-red-100 flex items-center shadow-sm animate-pulse"><XCircle size={18} className="mr-2 shrink-0"/>{authError}</div>}
+            
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tài khoản</label>
+                <div className="relative group">
+                  <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={20} />
+                  <input type="text" placeholder="Tên đăng nhập" required className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium" value={username} onChange={(e) => setUsername(e.target.value)} />
+                </div>
               </div>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                <input type="password" placeholder="Mật khẩu" required className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary transition-all" value={password} onChange={(e) => setPassword(e.target.value)} />
+              
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mật khẩu</label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={20} />
+                  <input type="password" placeholder="Mật khẩu" required className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium" value={password} onChange={(e) => setPassword(e.target.value)} />
+                </div>
               </div>
-              <button type="submit" disabled={authLoading} className="w-full bg-primary text-white font-black py-4 rounded-xl shadow-lg shadow-primary/25 hover:bg-blue-600 active:scale-95 transition-all">{authLoading ? 'Đang xử lý...' : 'ĐĂNG NHẬP'}</button>
+
+              <button type="submit" disabled={authLoading} className="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/25 hover:bg-blue-600 active:scale-[0.98] transition-all transform uppercase tracking-widest text-sm">
+                {authLoading ? 'Đang xử lý...' : 'ĐĂNG NHẬP'}
+              </button>
             </form>
           </div>
         </div>
