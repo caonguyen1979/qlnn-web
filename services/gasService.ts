@@ -64,7 +64,9 @@ const handleMockCall = (funcName: string, ...args: any[]): any => {
     case 'api_updateUser':
     case 'api_deleteUser':
     case 'api_saveSystemConfig':
-      return { success: true, message: 'Thao tác thành công' };
+    case 'api_register':
+    case 'api_resetPassword':
+      return { success: true, message: 'Thao tác thành công (Mock)' };
 
     case 'api_uploadFile':
       return "https://via.placeholder.com/150?text=Uploaded+File";
@@ -117,6 +119,9 @@ export const gasService = {
   },
   register: async (data: any): Promise<ApiResponse<User>> => {
     return await serverCall('api_register', data);
+  },
+  resetPassword: async (email: string): Promise<ApiResponse<any>> => {
+    return await serverCall('api_resetPassword', email);
   },
   createUser: async (data: Partial<User>): Promise<ApiResponse<User>> => {
     return await serverCall('api_createUser', data);
