@@ -30,11 +30,6 @@ import {
   Calendar,
   Eye, 
   ImageIcon,
-  ChevronLeft,
-  ChevronRight,
-  Printer,
-  FileSpreadsheet,
-  FileDown,
   GraduationCap
 } from 'lucide-react';
 
@@ -252,8 +247,8 @@ const App: React.FC = () => {
           <div className="hidden md:flex md:w-1/2 bg-primary p-12 flex-col justify-center text-white relative">
             <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
             <div className="relative z-10 flex flex-col items-center text-center">
-              <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-md border border-white/30">
-                <GraduationCap size={48} className="text-white" />
+              <div className="w-24 h-24 mb-6">
+                <img src="logo.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=Logo' }} />
               </div>
               <h1 className="text-4xl font-black mb-6 leading-tight">{systemConfig.schoolName}</h1>
               <p className="text-lg opacity-90 font-medium">Hệ thống quản lý nghỉ phép thông minh cho nhà trường.</p>
@@ -261,8 +256,8 @@ const App: React.FC = () => {
           </div>
           <div className="w-full md:w-1/2 p-10 md:p-14 flex flex-col justify-center">
             <div className="text-center mb-10 md:hidden">
-              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <GraduationCap size={36} className="text-primary" />
+              <div className="w-20 h-20 mx-auto mb-4">
+                <img src="logo.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/80?text=Logo' }} />
               </div>
               <h1 className="text-2xl font-black text-gray-800">{systemConfig.schoolName}</h1>
             </div>
@@ -299,8 +294,8 @@ const App: React.FC = () => {
       {/* Sidebar (Desktop & Mobile) */}
       <aside className={`fixed inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition duration-300 ease-in-out z-50 flex flex-col bg-white border-r border-gray-200 ${sidebarCollapsed ? 'md:w-0 overflow-hidden' : 'w-72 md:w-72'}`}>
         <div className="h-20 flex items-center px-8 border-b border-gray-100 bg-gray-50/30">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-black mr-3 shadow-lg shadow-primary/20">
-            <GraduationCap size={24} />
+          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center mr-3 shadow-md border border-gray-100 overflow-hidden">
+            <img src="logo.png" alt="Logo" className="w-8 h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40?text=L' }} />
           </div>
           <span className="text-lg font-black text-gray-800 truncate">{systemConfig.schoolName}</span>
           <button onClick={() => setSidebarOpen(false)} className="md:hidden ml-auto text-gray-500"><X size={24}/></button>
@@ -325,7 +320,10 @@ const App: React.FC = () => {
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 no-print">
           <div className="flex items-center">
-            <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-600 mr-4 p-2 bg-gray-50 rounded-lg"><Menu size={24} /></button>
+            {/* Sửa nút menu mobile để hoạt động chính xác */}
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-600 mr-4 p-2 bg-gray-50 rounded-lg focus:outline-none active:bg-gray-200 transition-colors">
+              <Menu size={24} />
+            </button>
             <h2 className="text-xl font-black text-gray-800 tracking-tight">{activeTab === 'dashboard' ? 'Thống kê' : activeTab === 'requests' ? 'Quản lý đơn' : 'Cài đặt'}</h2>
           </div>
           <div className="flex items-center space-x-3">
@@ -336,7 +334,7 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-4 md:p-8 main-content">
           {activeTab === 'dashboard' && (
             <div className="max-w-7xl mx-auto">
-               {/* Bộ lọc tuần phục hồi */}
+               {/* Bộ lọc tuần thống kê hiển thị rõ ràng */}
                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm no-print gap-3">
                   <div className="flex items-center space-x-2">
                     <Calendar size={18} className="text-primary" />
@@ -348,10 +346,22 @@ const App: React.FC = () => {
                </div>
                
                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 no-print">
-                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tổng đơn</p><p className="text-3xl font-black text-gray-800">{data.filter(r => Number(r.week) === selectedDashboardWeek).length}</p></div>
-                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Đang chờ</p><p className="text-3xl font-black text-yellow-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.PENDING).length}</p></div>
-                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Đã duyệt</p><p className="text-3xl font-black text-green-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.APPROVED).length}</p></div>
-                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Từ chối</p><p className="text-3xl font-black text-red-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.REJECTED).length}</p></div>
+                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tổng đơn (T{selectedDashboardWeek})</p>
+                    <p className="text-3xl font-black text-gray-800">{data.filter(r => Number(r.week) === selectedDashboardWeek).length}</p>
+                 </div>
+                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Đang chờ</p>
+                    <p className="text-3xl font-black text-yellow-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.PENDING).length}</p>
+                 </div>
+                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Đã duyệt</p>
+                    <p className="text-3xl font-black text-green-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.APPROVED).length}</p>
+                 </div>
+                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Từ chối</p>
+                    <p className="text-3xl font-black text-red-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.REJECTED).length}</p>
+                 </div>
               </div>
               <DashboardChart allData={data} systemConfig={systemConfig} selectedWeek={selectedDashboardWeek} />
             </div>
@@ -362,63 +372,72 @@ const App: React.FC = () => {
               <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 mb-6 space-y-4 no-print">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   <div className="flex flex-1 flex-wrap items-center gap-3">
-                    <div className="relative flex-1 min-w-[280px]"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input type="text" placeholder="Tìm tên..." className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 focus:border-primary outline-none text-sm font-medium" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-                    <select className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none" value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)}><option value="">Tuần học</option>{availableWeeks.map(w => <option key={w} value={w}>Tuần {w}</option>)}</select>
-                    <select className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="">Trạng thái</option>{Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}</select>
+                    <div className="relative flex-1 min-w-[280px]"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input type="text" placeholder="Tìm tên, ID..." className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 focus:border-primary outline-none text-sm font-medium" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+                    <select className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none" value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)}><option value="">Mọi tuần</option>{availableWeeks.map(w => <option key={w} value={w}>Tuần {w}</option>)}</select>
+                    <select className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none" value={filterClass} onChange={(e) => setFilterClass(e.target.value)}><option value="">Mọi lớp</option>{systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
+                    <select className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="">Mọi trạng thái</option>{Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}</select>
                   </div>
                   {canCreate && (<button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} className="bg-primary hover:bg-blue-600 text-white px-8 py-3.5 rounded-2xl text-sm font-black flex items-center justify-center space-x-2 shadow-xl shadow-primary/25 transition-all"><Plus size={20} /><span>TẠO ĐƠN</span></button>)}
                 </div>
               </div>
 
-              {/* MOBILE CARD VIEW - FULL DETAILS */}
+              {/* MOBILE CARD VIEW - HIỂN THỊ ĐẦY ĐỦ THÔNG TIN THEO YÊU CẦU */}
               <div className="md:hidden flex-1 overflow-auto space-y-4 no-print pb-10">
-                {paginatedData.length === 0 ? (<div className="text-center py-20 text-gray-400 font-bold">Chưa có đơn nào</div>) : (
+                {paginatedData.length === 0 ? (<div className="text-center py-20 text-gray-400 font-bold">Không tìm thấy đơn vắng học</div>) : (
                   paginatedData.map(item => (
                     <div key={item.id} className="bg-white rounded-3xl shadow-md p-5 border border-gray-100 relative overflow-hidden active:scale-[0.99] transition-transform">
-                      <div className={`absolute left-0 top-0 bottom-0 w-2 ${item.status === Status.APPROVED ? 'bg-green-500' : item.status === Status.REJECTED ? 'bg-red-500' : 'bg-yellow-500'}`}></div>
+                      {/* Status accent bar */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${item.status === Status.APPROVED ? 'bg-green-500' : item.status === Status.REJECTED ? 'bg-red-500' : 'bg-yellow-500'}`}></div>
                       
-                      <div className="flex justify-between items-start mb-4">
+                      <div className="flex justify-between items-start mb-4 pl-2">
                          <div className="flex-1">
-                            <h4 className="font-black text-gray-900 text-lg leading-tight">{item.studentName}</h4>
-                            <p className="text-sm font-bold text-gray-500">Lớp: <span className="text-gray-800">{item.class}</span></p>
+                            <h4 className="font-black text-gray-900 text-lg leading-tight mb-1">{item.studentName} - {item.class}</h4>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tuần {item.week}</p>
                          </div>
-                         <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${item.status === Status.APPROVED ? 'bg-green-500 text-white' : item.status === Status.REJECTED ? 'bg-red-500 text-white' : 'bg-yellow-400 text-yellow-900'}`}>{item.status}</span>
+                         <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase shadow-sm ${item.status === Status.APPROVED ? 'bg-green-50 text-green-700 border border-green-100' : item.status === Status.REJECTED ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-yellow-50 text-yellow-700 border border-yellow-100'}`}>{item.status}</span>
                       </div>
 
-                      <div className="space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                      <div className="space-y-3 bg-gray-50/80 p-4 rounded-2xl border border-gray-100 mb-4">
+                         {/* Ngày vắng */}
                          <div className="flex items-start space-x-3">
-                            <Calendar size={16} className="text-gray-400 mt-0.5" />
+                            <Calendar size={16} className="text-gray-400 mt-0.5 shrink-0" />
                             <div className="flex-1">
-                               <span className="text-[10px] text-gray-400 uppercase font-black block leading-none mb-1">Thời gian vắng</span>
-                               <span className="text-sm text-gray-800 font-bold">{formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate ? ` đến ${formatDateDisplay(item.toDate)}` : ''}</span>
+                               <span className="text-[10px] text-gray-400 uppercase font-black block leading-none mb-1">Ngày vắng</span>
+                               <span className="text-sm text-gray-800 font-bold">
+                                 {formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate ? ` đến ${formatDateDisplay(item.toDate)}` : ''}
+                               </span>
                             </div>
                          </div>
+                         {/* Lý do vắng */}
                          <div className="flex items-start space-x-3">
-                            <FileText size={16} className="text-gray-400 mt-0.5" />
+                            <FileText size={16} className="text-gray-400 mt-0.5 shrink-0" />
                             <div className="flex-1">
                                <span className="text-[10px] text-gray-400 uppercase font-black block leading-none mb-1">Lý do vắng</span>
-                               <span className="text-sm text-gray-700 font-medium">{item.reason}</span>
+                               <span className="text-sm text-gray-700 font-medium leading-relaxed">{item.reason}</span>
                             </div>
                          </div>
-                         <div className="flex items-start space-x-3 border-t border-gray-200 pt-3 mt-1">
-                            <CheckCircle size={16} className="text-green-500 mt-0.5" />
+                         {/* Người duyệt đơn - Hiển thị tên đầy đủ nếu đã duyệt/từ chối */}
+                         <div className="flex items-start space-x-3 border-t border-gray-200/50 pt-3 mt-1">
+                            <CheckCircle size={16} className={`${item.status !== Status.PENDING ? 'text-green-500' : 'text-gray-300'} mt-0.5 shrink-0`} />
                             <div className="flex-1">
                                <span className="text-[10px] text-gray-400 uppercase font-black block leading-none mb-1">Người duyệt đơn</span>
-                               <span className="text-sm font-black text-gray-900">{item.status !== Status.PENDING ? (item.approver || 'Hệ thống') : ''}</span>
+                               <span className="text-sm font-black text-gray-900 min-h-[1.25rem] block">
+                                 {item.status !== Status.PENDING ? (item.approver || 'Ban Giám Hiệu') : ''}
+                               </span>
                             </div>
                          </div>
                       </div>
 
-                      <div className="flex items-center justify-between mt-5">
+                      <div className="flex items-center justify-between">
                          <div className="flex space-x-2">
-                           {item.attachmentUrl && (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="flex items-center space-x-2 text-primary text-xs font-black bg-blue-50 px-3 py-2 rounded-xl border border-blue-100"><ImageIcon size={16}/> <span>Minh chứng</span></button>)}
+                           {item.attachmentUrl && (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="flex items-center space-x-2 text-primary text-xs font-black bg-blue-50 px-3 py-2.5 rounded-xl border border-blue-100 active:scale-95 transition-all"><ImageIcon size={16}/> <span>Xem minh chứng</span></button>)}
                          </div>
                          <div className="flex items-center space-x-2">
                            {canApprove && item.status === Status.PENDING && (
-                             <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="p-2.5 bg-green-50 text-green-600 rounded-xl border border-green-100"><CheckCircle size={22}/></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="p-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100"><XCircle size={22}/></button></>
+                             <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="p-3 bg-green-50 text-green-600 rounded-xl border border-green-100 active:scale-90 transition-all"><CheckCircle size={20}/></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-100 active:scale-90 transition-all"><XCircle size={20}/></button></>
                            )}
-                           {canDelete && (<button onClick={() => handleDelete(item.id)} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl border border-gray-100"><Trash2 size={22}/></button>)}
-                           {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => {setEditingItem(item); setIsModalOpen(true);}} className="p-2.5 bg-blue-50 text-blue-500 rounded-xl border border-blue-100"><Edit2 size={22}/></button>)}
+                           {canDelete && (<button onClick={() => handleDelete(item.id)} className="p-3 bg-gray-50 text-gray-400 rounded-xl border border-gray-200 active:scale-90 transition-all"><Trash2 size={20}/></button>)}
+                           {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => {setEditingItem(item); setIsModalOpen(true);}} className="p-3 bg-blue-50 text-blue-500 rounded-xl border border-blue-100 active:scale-90 transition-all"><Edit2 size={20}/></button>)}
                          </div>
                       </div>
                     </div>
@@ -429,7 +448,7 @@ const App: React.FC = () => {
               {/* Desktop Table View */}
               <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-gray-100 overflow-auto flex-1">
                 <table className="w-full text-sm text-left text-gray-500">
-                  <thead className="text-[10px] text-gray-400 uppercase font-black bg-gray-50/50 border-b sticky top-0 tracking-widest">
+                  <thead className="text-[10px] text-gray-400 uppercase font-black bg-gray-50/50 border-b sticky top-0 tracking-widest z-10">
                     <tr>
                       <th className="px-6 py-4">Tuần</th>
                       <th className="px-6 py-4">Học sinh</th>
@@ -444,22 +463,39 @@ const App: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {paginatedData.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                      <tr key={item.id} className="hover:bg-gray-50/30 transition-colors">
                         <td className="px-6 py-5 font-black text-gray-400">{item.week}</td>
                         <td className="px-6 py-5 font-bold text-gray-900">{item.studentName}</td>
-                        <td className="px-6 py-5">{item.class}</td>
-                        <td className="px-6 py-5 whitespace-nowrap">{formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate && ` - ${formatDateDisplay(item.toDate)}`}</td>
-                        <td className="px-6 py-5 text-gray-500">{item.reason}</td>
-                        <td className="px-6 py-5 text-center">{item.attachmentUrl ? (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="p-2 text-primary hover:bg-blue-50 rounded-xl"><Eye size={18} /></button>) : (<span className="text-gray-300">-</span>)}</td>
-                        <td className="px-6 py-5"><span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${item.status === Status.APPROVED ? 'bg-green-100 text-green-700' : item.status === Status.REJECTED ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status}</span></td>
-                        <td className="px-6 py-5 text-xs font-bold">{item.status !== Status.PENDING ? (item.approver || 'Hệ thống') : ''}</td>
+                        <td className="px-6 py-5 font-medium">{item.class}</td>
+                        <td className="px-6 py-5 whitespace-nowrap font-medium text-gray-700">{formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate && ` - ${formatDateDisplay(item.toDate)}`}</td>
+                        <td className="px-6 py-5 text-gray-500 max-w-xs truncate">{item.reason}</td>
+                        <td className="px-6 py-5 text-center">
+                          {item.attachmentUrl ? (
+                            <button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="p-2 text-primary hover:bg-blue-50 rounded-xl transition-colors">
+                              <Eye size={18} />
+                            </button>
+                          ) : (
+                            <span className="text-gray-200">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-5">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${item.status === Status.APPROVED ? 'bg-green-50 text-green-700 border-green-100' : item.status === Status.REJECTED ? 'bg-red-50 text-red-700 border-red-100' : 'bg-yellow-50 text-yellow-700 border-yellow-100'}`}>
+                            {item.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-5 text-xs font-bold text-gray-800">
+                          {item.status !== Status.PENDING ? (item.approver || 'Ban Giám Hiệu') : ''}
+                        </td>
                         <td className="px-6 py-5 text-center no-print">
-                            <div className="flex items-center justify-center space-x-2">
+                            <div className="flex items-center justify-center space-x-1">
                               {canApprove && item.status === Status.PENDING && (
-                                <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="text-green-600 p-2"><CheckCircle size={20} /></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="text-red-600 p-2"><XCircle size={20} /></button></>
+                                <>
+                                  <button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="text-green-600 p-2 hover:bg-green-50 rounded-lg transition-colors" title="Duyệt đơn"><CheckCircle size={20} /></button>
+                                  <button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors" title="Từ chối"><XCircle size={20} /></button>
+                                </>
                               )}
-                              {canDelete && (<button onClick={() => handleDelete(item.id)} className="text-gray-400 p-2 hover:bg-gray-50 rounded-lg"><Trash2 size={20} /></button>)}
-                              {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} className="text-blue-500 p-2"><Edit2 size={20} /></button>)}
+                              {canDelete && (<button onClick={() => handleDelete(item.id)} className="text-gray-400 p-2 hover:bg-gray-50 rounded-lg transition-colors" title="Xóa đơn"><Trash2 size={20} /></button>)}
+                              {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} className="text-blue-500 p-2 hover:bg-blue-50 rounded-lg transition-colors" title="Sửa đơn"><Edit2 size={20} /></button>)}
                             </div>
                         </td>
                       </tr>
@@ -470,11 +506,38 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'settings' && user.role === Role.ADMIN && (<div className="max-w-5xl mx-auto space-y-8"><UserManagement users={allUsers} onRefresh={loadData} classes={systemConfig.classes} /><SystemSettings config={systemConfig} onRefresh={loadData} /></div>)}
+          {activeTab === 'settings' && user.role === Role.ADMIN && (
+            <div className="max-w-5xl mx-auto space-y-8 pb-20">
+              <UserManagement users={allUsers} onRefresh={loadData} classes={systemConfig.classes} />
+              <SystemSettings config={systemConfig} onRefresh={loadData} />
+            </div>
+          )}
         </div>
       </main>
 
-      {isModalOpen && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col"><div className="px-8 py-5 border-b bg-gray-50/50 flex justify-between items-center"><h3 className="text-xl font-black text-gray-800">{editingItem ? 'SỬA ĐƠN' : 'TẠO ĐƠN'}</h3><button onClick={() => setIsModalOpen(false)}><X size={20} /></button></div><div className="p-8 overflow-y-auto"><DynamicForm config={formConfig} initialData={editingItem || { week: systemConfig.currentWeek }} onSubmit={editingItem ? handleUpdate : handleCreate} onCancel={() => setIsModalOpen(false)} isSubmitting={isSubmitting} /></div></div></div>)}
+      {/* Modals */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-8 py-5 border-b bg-gray-50/50 flex justify-between items-center">
+              <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">{editingItem ? 'CẬP NHẬT ĐƠN VẮNG' : 'TẠO ĐƠN VẮNG MỚI'}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-8 overflow-y-auto">
+              <DynamicForm 
+                config={formConfig} 
+                initialData={editingItem || { week: systemConfig.currentWeek }} 
+                onSubmit={editingItem ? handleUpdate : handleCreate} 
+                onCancel={() => setIsModalOpen(false)} 
+                isSubmitting={isSubmitting} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      
       <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
     </div>
   );
