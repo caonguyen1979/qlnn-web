@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ColumnConfig } from '../types';
 import { Upload, X } from 'lucide-react';
@@ -72,7 +73,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({ config, initialData = 
                 <div className="flex items-center space-x-2">
                   <label className="cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center">
                     <Upload className="w-4 h-4 mr-2" />
-                    {uploading ? "Đang tải lên..." : "Chọn ảnh (jpg, png < 3MB)"}
+                    {uploading ? "Đang tải lên..." : "Chọn ảnh (Tối đa 4MB)"}
                     <input type="file" className="hidden" accept=".jpg,.jpeg,.png" onChange={(e) => handleFileUpload(e, col.key)} disabled={uploading} />
                   </label>
                   {formData[col.key] && (
@@ -89,7 +90,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({ config, initialData = 
                   value={formData[col.key] || ''}
                   onChange={(e) => handleChange(col.key, e.target.value)}
                   required={col.required}
-                  min={col.min} // Applied min attribute
+                  min={col.min}
                 />
               )}
             </div>
