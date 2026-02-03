@@ -1,16 +1,12 @@
+
 import { User, Role, LeaveRequest, Status, ApiResponse, DashboardStats, SystemConfigData } from '../types';
 
 // --- CONFIGURATION ---
-// QUAN TRỌNG: Thay thế URL này bằng Web App URL của bạn sau khi deploy GAS
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxzZGX6G6LASRT_kudGvRO69iVyZ81bfr0WDXcA0G5GKjHXngkCu-GMwnhdO26stHoE/exec"; 
 
-// --- HELPER: DETECT ENVIRONMENT ---
 const isGAS = typeof window !== 'undefined' && (window as any).google && (window as any).google.script;
-
-// Check if URL is the default placeholder
 const isPlaceholderUrl = GAS_API_URL.includes("AKfycbyvj5mG2y9_Ym6_Zz5XqXqXqXqXq");
 
-// --- MOCK DATA FOR FALLBACK ---
 const getToday = (offsetDays = 0) => {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
@@ -20,6 +16,7 @@ const getToday = (offsetDays = 0) => {
 const MOCK_USERS: User[] = [
   { id: 'u1', username: 'admin', fullname: 'Quản Trị Viên (Demo)', role: Role.ADMIN, class: '' },
   { id: 'u2', username: 'hs1', fullname: 'Nguyễn Văn A (Demo)', role: Role.HS, class: '10A1' },
+  { id: 'u3', username: 'gv1', fullname: 'GVCN Lớp 10A1', role: Role.GVCN, class: '10A1' },
 ];
 
 const MOCK_REQUESTS: LeaveRequest[] = [
@@ -31,16 +28,11 @@ const MOCK_REQUESTS: LeaveRequest[] = [
   { 
     id: 'demo2', studentName: 'Trần Thị B', class: '11A2', week: 1, 
     reason: 'Việc gia đình', fromDate: getToday(1), toDate: getToday(1), 
-    status: Status.PENDING, createdBy: 'hs2', createdAt: new Date().toISOString() 
+    status: Status.PENDING, createdBy: 'gv1', createdAt: new Date().toISOString() 
   }
 ];
 
-// Helper: Handle Mock Calls
 const handleMockCall = (funcName: string, ...args: any[]): any => {
-  if (!isPlaceholderUrl) {
-    console.debug(`[Offline Mode] Executing mock for: ${funcName}`);
-  }
-  
   switch (funcName) {
     case 'api_login':
       const [u, p] = args;
@@ -60,12 +52,7 @@ const handleMockCall = (funcName: string, ...args: any[]): any => {
     case 'api_getSystemConfig':
       return {
         success: true,
-        data: {
-          classes: ['10A1', '10A2', '11A1'],
-          reasons: ['Ốm', 'Việc riêng'],
-          schoolName: 'Trường Demo (Offline)',
-          currentWeek: 1
-        }
+        data: { classes: ['10A1', '10A2', '11A1'], reasons: ['Ốm', 'Việc riêng'], schoolName: 'Trường Demo (Offline)', currentWeek: 1 }
       };
       
     case 'api_createRequest':
@@ -87,7 +74,6 @@ const handleMockCall = (funcName: string, ...args: any[]): any => {
   }
 };
 
-// Helper to make API calls (Handles both RPC and Fetch)
 const serverCall = async (funcName: string, ...args: any[]): Promise<any> => {
   if (isGAS) {
     return new Promise((resolve, reject) => {
@@ -99,7 +85,6 @@ const serverCall = async (funcName: string, ...args: any[]): Promise<any> => {
   }
 
   if (isPlaceholderUrl) {
-    console.log(`[Dev Mode] Placeholder URL detected. Using Mock Data for ${funcName}.`);
     await delay(300);
     return handleMockCall(funcName, ...args);
   }
@@ -107,23 +92,12 @@ const serverCall = async (funcName: string, ...args: any[]): Promise<any> => {
   try {
     const response = await fetch(GAS_API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8",
-      },
-      body: JSON.stringify({
-        action: funcName,
-        args: args
-      })
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: funcName, args: args })
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    return result;
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
   } catch (error) {
-    console.warn(`API Connection Failed (${funcName}) - Switching to Offline Mode.`);
     return handleMockCall(funcName, ...args);
   }
 };
@@ -134,61 +108,48 @@ export const gasService = {
   loadAllConfigData: async (): Promise<{ users: User[], requests: LeaveRequest[], config: SystemConfigData }> => {
     return await serverCall('api_loadAllConfigData');
   },
-
   getSystemConfig: async (): Promise<ApiResponse<SystemConfigData>> => {
     return await serverCall('api_getSystemConfig');
   },
-
   saveSystemConfig: async (config: SystemConfigData): Promise<ApiResponse<void>> => {
     return await serverCall('api_saveSystemConfig', config);
   },
-
   login: async (username: string, password?: string): Promise<ApiResponse<User>> => {
     return await serverCall('api_login', username, password);
   },
-
   register: async (data: {username: string, password: string, fullname: string, email: string, class?: string, role?: string}): Promise<ApiResponse<User>> => {
     return await serverCall('api_register', data);
   },
-
   resetPassword: async (email: string): Promise<ApiResponse<string>> => {
     return await serverCall('api_resetPassword', email);
   },
-
   createUser: async (data: Partial<User>): Promise<ApiResponse<User>> => {
     return await serverCall('api_createUser', data);
   },
-
   updateUser: async (id: string, updates: Partial<User>): Promise<ApiResponse<User>> => {
     return await serverCall('api_updateUser', id, updates);
   },
-
   deleteUser: async (id: string): Promise<ApiResponse<string>> => {
     return await serverCall('api_deleteUser', id);
   },
-
   createRequest: async (data: Partial<LeaveRequest>, user: User): Promise<ApiResponse<LeaveRequest>> => {
     return await serverCall('api_createRequest', data, JSON.stringify(user));
   },
-
   updateRequest: async (id: string, updates: Partial<LeaveRequest>): Promise<ApiResponse<LeaveRequest>> => {
     return await serverCall('api_updateRequest', id, updates);
   },
-
   deleteRequest: async (id: string): Promise<ApiResponse<string>> => {
     return await serverCall('api_deleteRequest', id);
   },
-
   uploadFile: async (file: File): Promise<string> => {
     const allowedTypes = ['image/jpeg', 'image/png'];
-    const maxSize = 3 * 1024 * 1024; // 3MB
+    const maxSize = 4 * 1024 * 1024; // Increased to 4MB
 
     if (!allowedTypes.includes(file.type)) {
       throw new Error("Chỉ chấp nhận file ảnh (.jpg, .png)");
     }
-
     if (file.size > maxSize) {
-      throw new Error("Dung lượng file không được quá 3MB");
+      throw new Error("Dung lượng file không được quá 4MB");
     }
 
     return new Promise((resolve, reject) => {
@@ -205,13 +166,7 @@ export const gasService = {
       reader.readAsDataURL(file);
     });
   },
-
   getStats: async (): Promise<DashboardStats> => {
-    return {
-      total: 0,
-      pending: 0,
-      approved: 0,
-      rejected: 0,
-    };
+    return { total: 0, pending: 0, approved: 0, rejected: 0 };
   }
 };
