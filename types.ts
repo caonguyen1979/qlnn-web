@@ -2,9 +2,9 @@
 // Enums for Roles and Status
 export enum Role {
   ADMIN = 'ADMIN',
-  USER = 'USER', // Ban giám hiệu / Quản lý
-  GVCN = 'GVCN', // Giáo viên chủ nhiệm
-  HS = 'HS',     // Học sinh / Phụ huynh
+  USER = 'USER', // Staff/Manager
+  GVCN = 'GVCN', // Class Teacher (New)
+  HS = 'HS',     // Student
   VIEWER = 'VIEWER'
 }
 
@@ -26,7 +26,7 @@ export interface ColumnConfig {
   noSave?: boolean;
   width?: string;
   defaultValue?: any;
-  min?: string | number;
+  min?: string | number; // Added min property for validation
 }
 
 export interface SheetConfig {
@@ -41,15 +41,15 @@ export interface User {
   fullname: string;
   email?: string;
   role: Role;
-  class?: string; // For Students or GVCN
-  password?: string;
+  class?: string; // For Students
+  password?: string; // Optional for UI, handled in backend
 }
 
 export interface LeaveRequest {
   id: string;
   studentName: string;
   class: string;
-  week: number;
+  week: number; // Added week field
   reason: string;
   fromDate: string;
   toDate: string;
@@ -58,14 +58,14 @@ export interface LeaveRequest {
   createdAt: string;
   approver?: string; 
   attachmentUrl?: string;
-  [key: string]: any;
+  [key: string]: any; // Allow dynamic fields based on config
 }
 
 export interface SystemConfigData {
   classes: string[];
   reasons: string[];
   schoolName: string;
-  currentWeek: number;
+  currentWeek: number; // Added currentWeek setting
   [key: string]: any;
 }
 
