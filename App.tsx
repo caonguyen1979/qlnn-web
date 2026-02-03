@@ -34,7 +34,8 @@ import {
   ChevronRight,
   Printer,
   FileSpreadsheet,
-  FileDown
+  FileDown,
+  GraduationCap
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
@@ -58,12 +59,6 @@ const App: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   
-  const [regFullname, setRegFullname] = useState('');
-  const [regUsername, setRegUsername] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regUserType, setRegUserType] = useState<Role>(Role.HS);
-  const [regClassInfo, setRegClassInfo] = useState('');
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<LeaveRequest | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -256,18 +251,33 @@ const App: React.FC = () => {
         <div className="flex w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden min-h-[600px] border border-gray-100">
           <div className="hidden md:flex md:w-1/2 bg-primary p-12 flex-col justify-center text-white relative">
             <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-            <div className="relative z-10">
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-md border border-white/30">
+                <GraduationCap size={48} className="text-white" />
+              </div>
               <h1 className="text-4xl font-black mb-6 leading-tight">{systemConfig.schoolName}</h1>
-              <p className="text-lg opacity-90 font-medium">Hệ thống quản lý nghỉ phép thông minh.</p>
+              <p className="text-lg opacity-90 font-medium">Hệ thống quản lý nghỉ phép thông minh cho nhà trường.</p>
             </div>
           </div>
           <div className="w-full md:w-1/2 p-10 md:p-14 flex flex-col justify-center">
+            <div className="text-center mb-10 md:hidden">
+              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <GraduationCap size={36} className="text-primary" />
+              </div>
+              <h1 className="text-2xl font-black text-gray-800">{systemConfig.schoolName}</h1>
+            </div>
             <h2 className="text-3xl font-black text-gray-800 mb-6">Đăng nhập</h2>
-            {authError && <div className="mb-4 text-red-500 font-bold">{authError}</div>}
+            {authError && <div className="mb-4 text-red-500 font-bold bg-red-50 p-3 rounded-xl border border-red-100 flex items-center"><XCircle size={18} className="mr-2"/>{authError}</div>}
             <form onSubmit={handleLogin} className="space-y-5">
-              <input type="text" placeholder="Tên đăng nhập" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none" value={username} onChange={(e) => setUsername(e.target.value)} />
-              <input type="password" placeholder="Mật khẩu" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none" value={password} onChange={(e) => setPassword(e.target.value)} />
-              <button type="submit" disabled={authLoading} className="w-full bg-primary text-white font-black py-4 rounded-xl shadow-lg">{authLoading ? 'Đang xử lý...' : 'ĐĂNG NHẬP'}</button>
+              <div className="relative">
+                <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input type="text" placeholder="Tên đăng nhập" required className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary transition-all" value={username} onChange={(e) => setUsername(e.target.value)} />
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input type="password" placeholder="Mật khẩu" required className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary transition-all" value={password} onChange={(e) => setPassword(e.target.value)} />
+              </div>
+              <button type="submit" disabled={authLoading} className="w-full bg-primary text-white font-black py-4 rounded-xl shadow-lg shadow-primary/25 hover:bg-blue-600 active:scale-95 transition-all">{authLoading ? 'Đang xử lý...' : 'ĐĂNG NHẬP'}</button>
             </form>
           </div>
         </div>
@@ -281,37 +291,62 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden font-sans">
-      {/* Sidebar Desktop */}
-      <aside className={`hidden md:flex flex-col bg-white border-r border-gray-200 transition-all duration-300 z-20 ${sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-72'}`}>
-        <div className="h-20 flex items-center px-8 border-b border-gray-100 min-w-[18rem] bg-gray-50/30"><div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-black mr-3">EL</div><span className="text-xl font-black text-gray-800 truncate">{systemConfig.schoolName}</span></div>
-        <nav className="flex-1 p-6 space-y-2 min-w-[18rem]">
-          <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-2xl ${activeTab === 'dashboard' ? 'bg-primary text-white font-bold' : 'text-gray-500 hover:bg-gray-50'}`}><LayoutDashboard size={22} /><span>Tổng quan</span></button>
-          <button onClick={() => setActiveTab('requests')} className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-2xl ${activeTab === 'requests' ? 'bg-primary text-white font-bold' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={22} /><span>Quản lý đơn</span></button>
-          {user.role === Role.ADMIN && (<button onClick={() => setActiveTab('settings')} className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-2xl ${activeTab === 'settings' ? 'bg-primary text-white font-bold' : 'text-gray-500 hover:bg-gray-50'}`}><Settings size={22} /><span>Cài đặt hệ thống</span></button>)}
+      {/* Sidebar Mobile Overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)}></div>
+      )}
+
+      {/* Sidebar (Desktop & Mobile) */}
+      <aside className={`fixed inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition duration-300 ease-in-out z-50 flex flex-col bg-white border-r border-gray-200 ${sidebarCollapsed ? 'md:w-0 overflow-hidden' : 'w-72 md:w-72'}`}>
+        <div className="h-20 flex items-center px-8 border-b border-gray-100 bg-gray-50/30">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-black mr-3 shadow-lg shadow-primary/20">
+            <GraduationCap size={24} />
+          </div>
+          <span className="text-lg font-black text-gray-800 truncate">{systemConfig.schoolName}</span>
+          <button onClick={() => setSidebarOpen(false)} className="md:hidden ml-auto text-gray-500"><X size={24}/></button>
+        </div>
+        <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
+          <button onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-2xl transition-all ${activeTab === 'dashboard' ? 'bg-primary text-white font-bold shadow-lg shadow-primary/20' : 'text-gray-500 hover:bg-gray-50'}`}><LayoutDashboard size={22} /><span>Tổng quan</span></button>
+          <button onClick={() => { setActiveTab('requests'); setSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-2xl transition-all ${activeTab === 'requests' ? 'bg-primary text-white font-bold shadow-lg shadow-primary/20' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={22} /><span>Quản lý đơn</span></button>
+          {user.role === Role.ADMIN && (<button onClick={() => { setActiveTab('settings'); setSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-2xl transition-all ${activeTab === 'settings' ? 'bg-primary text-white font-bold shadow-lg shadow-primary/20' : 'text-gray-500 hover:bg-gray-50'}`}><Settings size={22} /><span>Cài đặt hệ thống</span></button>)}
         </nav>
-        <div className="p-6 border-t border-gray-100 min-w-[18rem]"><button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 px-4 py-3 border border-gray-200 rounded-xl text-sm font-black text-gray-500 hover:bg-red-50 hover:text-red-500 transition-all"><LogOut size={18} /><span>ĐĂNG XUẤT</span></button></div>
+        <div className="p-6 border-t border-gray-100">
+          <div className="flex items-center space-x-3 mb-4 px-2">
+            <div className="w-10 h-10 rounded-full bg-blue-50 text-primary flex items-center justify-center font-bold">{user.fullname?.charAt(0)}</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-gray-900 truncate">{user.fullname}</p>
+              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{user.role}</p>
+            </div>
+          </div>
+          <button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 px-4 py-3 border border-gray-200 rounded-xl text-sm font-black text-gray-500 hover:bg-red-50 hover:text-red-500 transition-all"><LogOut size={18} /><span>ĐĂNG XUẤT</span></button>
+        </div>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 no-print">
           <div className="flex items-center">
-            <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-600 mr-4"><Menu size={24} /></button>
-            <h2 className="text-xl font-black text-gray-800">{activeTab === 'dashboard' ? 'Thống kê' : activeTab === 'requests' ? 'Đơn xin phép' : 'Cài đặt'}</h2>
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-600 mr-4 p-2 bg-gray-50 rounded-lg"><Menu size={24} /></button>
+            <h2 className="text-xl font-black text-gray-800 tracking-tight">{activeTab === 'dashboard' ? 'Thống kê' : activeTab === 'requests' ? 'Quản lý đơn' : 'Cài đặt'}</h2>
           </div>
           <div className="flex items-center space-x-3">
-             <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm border ${user.role === Role.ADMIN ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>{user.role}</span>
+             <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm border ${user.role === Role.ADMIN ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-blue-50 text-blue-700 border-blue-100'}`}>{user.role}</span>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 main-content">
           {activeTab === 'dashboard' && (
             <div className="max-w-7xl mx-auto">
-               <div className="mb-6 flex items-center justify-between bg-white p-4 rounded-2xl border border-gray-100 shadow-sm no-print">
-                  <span className="text-sm font-bold text-gray-500">Xem dữ liệu tuần:</span>
-                  <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm font-bold outline-none" value={selectedDashboardWeek} onChange={(e) => setSelectedDashboardWeek(Number(e.target.value))}>
-                    {availableWeeks.map(w => <option key={w} value={w}>Tuần {w}</option>)}
+               {/* Bộ lọc tuần phục hồi */}
+               <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between bg-white p-4 rounded-3xl border border-gray-100 shadow-sm no-print gap-3">
+                  <div className="flex items-center space-x-2">
+                    <Calendar size={18} className="text-primary" />
+                    <span className="text-sm font-bold text-gray-600 uppercase tracking-widest">Xem dữ liệu tuần:</span>
+                  </div>
+                  <select className="bg-gray-50 border border-gray-200 rounded-2xl px-6 py-2.5 text-sm font-black outline-none focus:border-primary transition-all cursor-pointer" value={selectedDashboardWeek} onChange={(e) => setSelectedDashboardWeek(Number(e.target.value))}>
+                    {availableWeeks.map(w => <option key={w} value={w}>TUẦN {w}</option>)}
                   </select>
                </div>
+               
                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 no-print">
                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tổng đơn</p><p className="text-3xl font-black text-gray-800">{data.filter(r => Number(r.week) === selectedDashboardWeek).length}</p></div>
                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Đang chờ</p><p className="text-3xl font-black text-yellow-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.PENDING).length}</p></div>
@@ -355,7 +390,7 @@ const App: React.FC = () => {
                             <Calendar size={16} className="text-gray-400 mt-0.5" />
                             <div className="flex-1">
                                <span className="text-[10px] text-gray-400 uppercase font-black block leading-none mb-1">Thời gian vắng</span>
-                               <span className="text-sm text-gray-800 font-bold">{formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate ? ` - ${formatDateDisplay(item.toDate)}` : ''}</span>
+                               <span className="text-sm text-gray-800 font-bold">{formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate ? ` đến ${formatDateDisplay(item.toDate)}` : ''}</span>
                             </div>
                          </div>
                          <div className="flex items-start space-x-3">
