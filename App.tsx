@@ -30,7 +30,9 @@ import {
   Calendar,
   Eye, 
   ImageIcon,
-  GraduationCap
+  GraduationCap,
+  Mail,
+  ArrowLeft
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
@@ -47,12 +49,19 @@ const App: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false); 
 
   const [selectedDashboardWeek, setSelectedDashboardWeek] = useState<number>(0);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  
+  // Auth States
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
   
+  // Auth Form Data
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [regFullname, setRegFullname] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regClass, setRegClass] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<LeaveRequest | null>(null);
@@ -110,19 +119,52 @@ const App: React.FC = () => {
     return dateString;
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthLoading(true);
     setAuthError('');
+    setAuthSuccess('');
+
     try {
-      const res = await gasService.login(username, password);
-      if (res.success && res.data) {
-        setUser(res.data);
-        const expiry = new Date().getTime() + 4 * 60 * 60 * 1000;
-        localStorage.setItem(SESSION_KEY, JSON.stringify({ user: res.data, expiry }));
-        loadData();
-      } else { setAuthError(res.message || 'Đăng nhập thất bại'); }
-    } catch (err) { setAuthError('Lỗi kết nối'); } finally { setAuthLoading(false); }
+      if (authMode === 'login') {
+        const res = await gasService.login(username, password);
+        if (res.success && res.data) {
+          setUser(res.data);
+          const expiry = new Date().getTime() + 4 * 60 * 60 * 1000;
+          localStorage.setItem(SESSION_KEY, JSON.stringify({ user: res.data, expiry }));
+          loadData();
+        } else {
+          setAuthError(res.message || 'Đăng nhập thất bại');
+        }
+      } else if (authMode === 'register') {
+        const res = await gasService.register({
+          username,
+          password,
+          fullname: regFullname,
+          email: regEmail,
+          class: regClass,
+          role: Role.HS // Mặc định đăng ký là học sinh
+        });
+        if (res.success) {
+          setAuthSuccess('Đăng ký thành công! Vui lòng đăng nhập.');
+          setAuthMode('login');
+        } else {
+          setAuthError(res.message || 'Đăng ký thất bại');
+        }
+      } else if (authMode === 'forgot') {
+        const res = await gasService.resetPassword(regEmail);
+        if (res.success) {
+          setAuthSuccess('Mật khẩu mới đã được gửi vào email của bạn.');
+          setAuthMode('login');
+        } else {
+          setAuthError(res.message || 'Không thể khôi phục mật khẩu.');
+        }
+      }
+    } catch (err) {
+      setAuthError('Lỗi kết nối máy chủ');
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -253,37 +295,90 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="w-full md:w-1/2 p-10 md:p-14 flex flex-col justify-center">
-            {/* Logo và tiêu đề được căn giữa */}
-            <div className="flex flex-col items-center mb-8 text-center">
-              <div className="w-24 h-24 mb-6">
+            {/* Logo và tiêu đề căn giữa */}
+            <div className="flex flex-col items-center mb-6 text-center">
+              <div className="w-20 h-20 mb-4">
                 <img src="logo.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=Logo' }} />
               </div>
-              <h2 className="text-4xl font-black text-gray-800 tracking-tight">Đăng nhập</h2>
+              <h2 className="text-3xl font-black text-gray-800 tracking-tight">
+                {authMode === 'login' ? 'Đăng nhập' : authMode === 'register' ? 'Đăng ký' : 'Quên mật khẩu'}
+              </h2>
             </div>
 
-            {authError && <div className="mb-6 text-red-500 font-bold bg-red-50 p-4 rounded-xl border border-red-100 flex items-center shadow-sm animate-pulse"><XCircle size={18} className="mr-2 shrink-0"/>{authError}</div>}
+            {authError && <div className="mb-4 text-red-500 font-bold bg-red-50 p-3 rounded-xl border border-red-100 flex items-center shadow-sm text-sm"><XCircle size={16} className="mr-2 shrink-0"/>{authError}</div>}
+            {authSuccess && <div className="mb-4 text-green-600 font-bold bg-green-50 p-3 rounded-xl border border-green-100 flex items-center shadow-sm text-sm"><CheckCircle size={16} className="mr-2 shrink-0"/>{authSuccess}</div>}
             
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tài khoản</label>
-                <div className="relative group">
-                  <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={20} />
-                  <input type="text" placeholder="Tên đăng nhập" required className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium" value={username} onChange={(e) => setUsername(e.target.value)} />
+            <form onSubmit={handleAuthSubmit} className="space-y-4">
+              {authMode !== 'forgot' && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tài khoản</label>
+                  <div className="relative group">
+                    <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={18} />
+                    <input type="text" placeholder="Tên đăng nhập" required className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium text-sm" value={username} onChange={(e) => setUsername(e.target.value)} />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mật khẩu</label>
-                <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={20} />
-                  <input type="password" placeholder="Mật khẩu" required className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium" value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-              </div>
+              )}
 
-              <button type="submit" disabled={authLoading} className="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/25 hover:bg-blue-600 active:scale-[0.98] transition-all transform uppercase tracking-widest text-sm">
-                {authLoading ? 'Đang xử lý...' : 'ĐĂNG NHẬP'}
+              {authMode !== 'forgot' && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mật khẩu</label>
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={18} />
+                    <input type="password" placeholder="Mật khẩu" required className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium text-sm" value={password} onChange={(e) => setPassword(e.target.value)} />
+                  </div>
+                </div>
+              )}
+
+              {/* Các trường bổ sung cho Đăng ký */}
+              {authMode === 'register' && (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Họ và tên</label>
+                    <div className="relative group">
+                      <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={18} />
+                      <input type="text" placeholder="Nguyễn Văn A" required className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium text-sm" value={regFullname} onChange={(e) => setRegFullname(e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Lớp</label>
+                    <div className="relative group">
+                      <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={18} />
+                      <input type="text" placeholder="Ví dụ: 10A1" className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium text-sm" value={regClass} onChange={(e) => setRegClass(e.target.value)} />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Trường Email dùng cho Đăng ký và Quên mật khẩu */}
+              {(authMode === 'register' || authMode === 'forgot') && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email {authMode === 'forgot' && 'khôi phục'}</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={18} />
+                    <input type="email" placeholder="email@example.com" required className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium text-sm" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} />
+                  </div>
+                </div>
+              )}
+
+              <button type="submit" disabled={authLoading} className="w-full bg-primary text-white font-black py-3.5 rounded-2xl shadow-lg shadow-primary/25 hover:bg-blue-600 active:scale-[0.98] transition-all transform uppercase tracking-widest text-sm mt-2">
+                {authLoading ? 'Đang xử lý...' : authMode === 'login' ? 'ĐĂNG NHẬP' : authMode === 'register' ? 'ĐĂNG KÝ NGAY' : 'GỬI YÊU CẦU'}
               </button>
             </form>
+
+            <div className="mt-6 flex flex-col items-center space-y-3 text-sm font-medium text-gray-600">
+               {authMode === 'login' && (
+                 <>
+                   <button onClick={() => { setAuthMode('register'); setAuthError(''); setAuthSuccess(''); }} className="hover:text-primary hover:underline">Đăng ký tài khoản mới</button>
+                   <button onClick={() => { setAuthMode('forgot'); setAuthError(''); setAuthSuccess(''); }} className="text-gray-400 hover:text-gray-600 text-xs">Quên mật khẩu?</button>
+                 </>
+               )}
+               
+               {(authMode === 'register' || authMode === 'forgot') && (
+                 <button onClick={() => { setAuthMode('login'); setAuthError(''); setAuthSuccess(''); }} className="flex items-center text-gray-500 hover:text-primary">
+                   <ArrowLeft size={16} className="mr-1" /> Quay lại đăng nhập
+                 </button>
+               )}
+            </div>
           </div>
         </div>
       </div>
