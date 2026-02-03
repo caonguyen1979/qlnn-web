@@ -25,11 +25,8 @@ import {
   XCircle,
   Trash2,
   Edit2, 
-  Mail,
   Lock,
   User as UserIcon,
-  ArrowLeft,
-  ShieldAlert,
   Calendar,
   Eye, 
   ImageIcon,
@@ -37,26 +34,10 @@ import {
   ChevronRight,
   Printer,
   FileSpreadsheet,
-  FileDown,
-  Columns,
-  Smartphone
+  FileDown
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
-
-type AuthMode = 'login' | 'register' | 'forgot';
-
-const AVAILABLE_COLUMNS = [
-  { key: 'week', label: 'Tuần' },
-  { key: 'studentName', label: 'Họ và tên' },
-  { key: 'class', label: 'Lớp' },
-  { key: 'date', label: 'Ngày nghỉ' }, 
-  { key: 'reason', label: 'Lý do' },
-  { key: 'detail', label: 'Chi tiết' },
-  { key: 'attachment', label: 'Minh chứng' },
-  { key: 'status', label: 'Trạng thái' },
-  { key: 'approver', label: 'Người duyệt' }
-];
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -70,21 +51,18 @@ const App: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false); 
 
   const [selectedDashboardWeek, setSelectedDashboardWeek] = useState<number>(0);
-  const [authMode, setAuthMode] = useState<AuthMode>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
-  const [authSuccess, setAuthSuccess] = useState('');
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   
   const [regFullname, setRegFullname] = useState('');
-  const [regEmail, setRegEmail] = useState('');
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regUserType, setRegUserType] = useState<Role.HS | Role.GVCN | Role.VIEWER>(Role.HS);
+  const [regUserType, setRegUserType] = useState<Role>(Role.HS);
   const [regClassInfo, setRegClassInfo] = useState('');
-  const [forgotEmail, setForgotEmail] = useState('');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<LeaveRequest | null>(null);
@@ -98,9 +76,6 @@ const App: React.FC = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(AVAILABLE_COLUMNS.map(c => c.key));
-  const [isColMenuOpen, setIsColMenuOpen] = useState(false);
-  const colMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -108,6 +83,7 @@ const App: React.FC = () => {
         const configRes = await gasService.getSystemConfig();
         if (configRes.success && configRes.data) {
            setSystemConfig(prev => ({ ...prev, ...configRes.data }));
+           setSelectedDashboardWeek(Number(configRes.data.currentWeek));
         }
       } catch (e) { console.warn("Config load failed:", e); }
 
@@ -116,15 +92,7 @@ const App: React.FC = () => {
         const parsed = JSON.parse(storedSession);
         if (new Date().getTime() < parsed.expiry) {
           setUser(parsed.user);
-          try {
-             const result = await gasService.loadAllConfigData();
-             setData(result.requests);
-             setAllUsers(result.users);
-             if (result.config) {
-               setSystemConfig(prev => ({ ...prev, ...result.config }));
-               if (result.config.currentWeek) { setSelectedDashboardWeek(Number(result.config.currentWeek)); }
-             }
-          } catch (err) { console.warn("Failed to load initial data", err); }
+          loadData();
         } else { localStorage.removeItem(SESSION_KEY); }
       }
       setLoading(false);
@@ -132,27 +100,15 @@ const App: React.FC = () => {
     init();
   }, []);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) { setIsColMenuOpen(false); }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => { document.removeEventListener("mousedown", handleClickOutside); };
-  }, []);
-
-  useEffect(() => {
-    if (user && user.role !== Role.ADMIN && activeTab === 'settings') { setActiveTab('dashboard'); }
-  }, [user, activeTab]);
-
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterClass, filterStatus, filterWeek]);
-
   const loadData = async () => {
     const result = await gasService.loadAllConfigData();
     setData(result.requests);
     setAllUsers(result.users);
     if (result.config) {
       setSystemConfig(prev => ({ ...prev, ...result.config }));
-      if (result.config.currentWeek) { setSelectedDashboardWeek(Number(result.config.currentWeek)); }
+      if (!selectedDashboardWeek && result.config.currentWeek) {
+        setSelectedDashboardWeek(Number(result.config.currentWeek));
+      }
     }
   };
 
@@ -164,56 +120,10 @@ const App: React.FC = () => {
     return dateString;
   };
 
-  const handlePrint = () => { window.print(); };
-
-  const exportToCSV = () => {
-    const headers = ['ID', 'Tuần', 'Học sinh', 'Lớp', 'Lý do', 'Từ ngày', 'Đến ngày', 'Trạng thái', 'Người duyệt'];
-    const rows = filteredData.map(item => [
-      item.id, item.week, item.studentName, item.class, item.reason,
-      formatDateDisplay(item.fromDate), formatDateDisplay(item.toDate),
-      item.status, item.approver || ''
-    ]);
-    const csvContent = [headers.join(','), ...rows.map(e => e.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))].join('\n');
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `Bao_cao_nghi_phep_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const exportToPDF = () => {
-    try {
-      // @ts-ignore
-      const doc = new jsPDF();
-      doc.setFont("helvetica", "bold");
-      doc.text(systemConfig.schoolName, 14, 15);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Danh sách nghỉ phép - Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 14, 25);
-      const tableColumn = ["Tuan", "Hoc sinh", "Lop", "Ly do", "Ngay nghi", "Trang thai", "Nguoi duyet"];
-      const tableRows = filteredData.map(item => [
-        item.week, item.studentName, item.class, item.reason,
-        `${formatDateDisplay(item.fromDate)} - ${formatDateDisplay(item.toDate)}`,
-        item.status, item.approver || ''
-      ]);
-      autoTable(doc, {
-        startY: 30, head: [tableColumn], body: tableRows,
-        styles: { font: "helvetica", fontSize: 10 },
-        headStyles: { fillColor: [13, 110, 253] },
-      });
-      doc.save(`Bao_cao_nghi_phep_${new Date().toISOString().slice(0,10)}.pdf`);
-    } catch (e) { alert("Lỗi khi xuất PDF."); }
-  };
-
-  const toggleColumn = (key: string) => {
-    setVisibleColumns(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthLoading(true);
+    setAuthError('');
     try {
       const res = await gasService.login(username, password);
       if (res.success && res.data) {
@@ -222,20 +132,6 @@ const App: React.FC = () => {
         localStorage.setItem(SESSION_KEY, JSON.stringify({ user: res.data, expiry }));
         loadData();
       } else { setAuthError(res.message || 'Đăng nhập thất bại'); }
-    } catch (err) { setAuthError('Lỗi kết nối'); } finally { setAuthLoading(false); }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthLoading(true);
-    try {
-      const res = await gasService.register({
-        username: regUsername, password: regPassword, fullname: regFullname, email: regEmail, class: regClassInfo, role: regUserType
-      });
-      if (res.success) {
-        setAuthSuccess('Đăng ký thành công!');
-        setTimeout(() => setAuthMode('login'), 2000);
-      } else { setAuthError(res.message || 'Đăng ký thất bại'); }
     } catch (err) { setAuthError('Lỗi kết nối'); } finally { setAuthLoading(false); }
   };
 
@@ -252,7 +148,7 @@ const App: React.FC = () => {
     const tempId = `TEMP-${Date.now()}`;
     const optimisticItem: LeaveRequest = {
       id: tempId, 
-      studentName: user.role === Role.HS ? user.fullname : (formData.studentName || 'Unknown'),
+      studentName: user.role === Role.HS ? user.fullname : (formData.studentName || 'Chưa rõ'),
       class: user.role === Role.HS ? (user.class || '') : (formData.class || ''),
       week: formData.week || systemConfig.currentWeek, reason: formData.reason,
       fromDate: formData.fromDate, toDate: formData.toDate, status: Status.PENDING,
@@ -331,7 +227,6 @@ const App: React.FC = () => {
     });
   }, [data, searchTerm, filterClass, filterStatus, filterWeek, user]);
 
-  const totalPages = Math.ceil(filteredData.length / pageSize);
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredData.slice(start, start + pageSize);
@@ -352,57 +247,28 @@ const App: React.FC = () => {
       });
       return studentConfig;
     }
-    
-    // For ADMIN, USER, GVCN
     return baseConfig.filter(c => c.key !== 'status' || PERMISSIONS[user?.role || Role.VIEWER].canApprove);
   }, [systemConfig, user]);
 
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="flex w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden min-h-[500px]">
+        <div className="flex w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden min-h-[600px] border border-gray-100">
           <div className="hidden md:flex md:w-1/2 bg-primary p-12 flex-col justify-center text-white relative">
             <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
             <div className="relative z-10">
-              <h1 className="text-4xl font-bold mb-4">{systemConfig.schoolName}</h1>
-              <p className="text-lg opacity-90">Hệ thống quản lý nghỉ phép thông minh.</p>
+              <h1 className="text-4xl font-black mb-6 leading-tight">{systemConfig.schoolName}</h1>
+              <p className="text-lg opacity-90 font-medium">Hệ thống quản lý nghỉ phép thông minh.</p>
             </div>
           </div>
-          <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
-            <div className="flex justify-center mb-6"><img src="./logo.png" alt="Logo" className="w-24 h-24 object-contain" /></div>
-            <div className="text-center md:text-left mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">{authMode === 'login' ? 'Đăng nhập' : authMode === 'register' ? 'Đăng ký' : 'Quên mật khẩu?'}</h2>
-              <p className="text-gray-500">{authMode === 'login' ? 'Chào mừng trở lại!' : authMode === 'register' ? 'Tạo tài khoản mới' : 'Nhập email để lấy lại mật khẩu'}</p>
-            </div>
-            {authError && <div className="mb-4 text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">{authError}</div>}
-            {authSuccess && <div className="mb-4 text-green-600 text-sm bg-green-50 p-3 rounded-lg border border-green-100">{authSuccess}</div>}
-            
-            {authMode === 'login' && (
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label><div className="relative"><UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input type="text" required className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" value={username} onChange={(e) => setUsername(e.target.value)} /></div></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input type="password" required className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-primary" value={password} onChange={(e) => setPassword(e.target.value)} /></div><div className="text-right mt-1"><button type="button" onClick={() => setAuthMode('forgot')} className="text-xs text-primary hover:underline">Quên mật khẩu?</button></div></div>
-                <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors">{authLoading ? 'Đang xử lý...' : 'Đăng nhập'}</button>
-                <div className="text-center text-sm text-gray-500 mt-4">Chưa có tài khoản? <button type="button" onClick={() => setAuthMode('register')} className="text-primary font-semibold hover:underline">Đăng ký ngay</button></div>
-              </form>
-            )}
-            {authMode === 'register' && (
-              <form onSubmit={handleRegister} className="space-y-4">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label><input type="text" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regFullname} onChange={e => setRegFullname(e.target.value)} /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regEmail} onChange={e => setRegEmail(e.target.value)} /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label><input type="text" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regUsername} onChange={e => setRegUsername(e.target.value)} /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label><input type="password" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regPassword} onChange={e => setRegPassword(e.target.value)} /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-2">Bạn là?</label>
-                  <div className="flex space-x-2">
-                    <button type="button" onClick={() => setRegUserType(Role.HS)} className={`flex-1 py-2 rounded-lg border text-xs font-medium ${regUserType === Role.HS ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600'}`}>Học sinh</button>
-                    <button type="button" onClick={() => setRegUserType(Role.GVCN)} className={`flex-1 py-2 rounded-lg border text-xs font-medium ${regUserType === Role.GVCN ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600'}`}>GVCN</button>
-                    <button type="button" onClick={() => setRegUserType(Role.VIEWER)} className={`flex-1 py-2 rounded-lg border text-xs font-medium ${regUserType === Role.VIEWER ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600'}`}>Khác</button>
-                  </div>
-                </div>
-                {regUserType === Role.HS ? (<div><label className="block text-sm font-medium text-gray-700 mb-1">Lớp</label><select className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regClassInfo} onChange={(e) => setRegClassInfo(e.target.value)} required><option value="">-- Chọn lớp --</option>{systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}</select></div>) : (<div><label className="block text-sm font-medium text-gray-700 mb-1">Thông tin thêm</label><input type="text" className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regClassInfo} onChange={e => setRegClassInfo(e.target.value)} /></div>)}
-                <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors mt-2">{authLoading ? 'Đang đăng ký...' : 'Đăng ký'}</button>
-                <div className="text-center text-sm mt-4"><button type="button" onClick={() => setAuthMode('login')} className="text-gray-500 hover:text-gray-800">Quay lại đăng nhập</button></div>
-              </form>
-            )}
+          <div className="w-full md:w-1/2 p-10 md:p-14 flex flex-col justify-center">
+            <h2 className="text-3xl font-black text-gray-800 mb-6">Đăng nhập</h2>
+            {authError && <div className="mb-4 text-red-500 font-bold">{authError}</div>}
+            <form onSubmit={handleLogin} className="space-y-5">
+              <input type="text" placeholder="Tên đăng nhập" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none" value={username} onChange={(e) => setUsername(e.target.value)} />
+              <input type="password" placeholder="Mật khẩu" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <button type="submit" disabled={authLoading} className="w-full bg-primary text-white font-black py-4 rounded-xl shadow-lg">{authLoading ? 'Đang xử lý...' : 'ĐĂNG NHẬP'}</button>
+            </form>
           </div>
         </div>
       </div>
@@ -415,150 +281,165 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden font-sans">
-      <aside className={`hidden md:flex flex-col bg-white border-r border-gray-200 transition-all duration-300 z-20 ${sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'}`}>
-        <div className="h-16 flex items-center px-6 border-b border-gray-100 min-w-[16rem]"><img src="./logo.png" alt="Logo" className="w-10 h-10 object-contain mr-3" /><span className="text-xl font-bold text-gray-800 truncate">{systemConfig.schoolName}</span></div>
-        <nav className="flex-1 p-4 space-y-1 min-w-[16rem]">
-          <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'dashboard' ? 'bg-blue-50 text-primary font-medium' : 'text-gray-600 hover:bg-gray-50'}`}><LayoutDashboard size={20} /><span>Tổng quan</span></button>
-          <button onClick={() => setActiveTab('requests')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'requests' ? 'bg-blue-50 text-primary font-medium' : 'text-gray-600 hover:bg-gray-50'}`}><FileText size={20} /><span>Đơn xin phép</span></button>
-          {user.role === Role.ADMIN && (<button onClick={() => setActiveTab('settings')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'settings' ? 'bg-blue-50 text-primary font-medium' : 'text-gray-600 hover:bg-gray-50'}`}><Settings size={20} /><span>Cài đặt hệ thống</span></button>)}
+      {/* Sidebar Desktop */}
+      <aside className={`hidden md:flex flex-col bg-white border-r border-gray-200 transition-all duration-300 z-20 ${sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-72'}`}>
+        <div className="h-20 flex items-center px-8 border-b border-gray-100 min-w-[18rem] bg-gray-50/30"><div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-black mr-3">EL</div><span className="text-xl font-black text-gray-800 truncate">{systemConfig.schoolName}</span></div>
+        <nav className="flex-1 p-6 space-y-2 min-w-[18rem]">
+          <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-2xl ${activeTab === 'dashboard' ? 'bg-primary text-white font-bold' : 'text-gray-500 hover:bg-gray-50'}`}><LayoutDashboard size={22} /><span>Tổng quan</span></button>
+          <button onClick={() => setActiveTab('requests')} className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-2xl ${activeTab === 'requests' ? 'bg-primary text-white font-bold' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={22} /><span>Quản lý đơn</span></button>
+          {user.role === Role.ADMIN && (<button onClick={() => setActiveTab('settings')} className={`w-full flex items-center space-x-3 px-5 py-3.5 rounded-2xl ${activeTab === 'settings' ? 'bg-primary text-white font-bold' : 'text-gray-500 hover:bg-gray-50'}`}><Settings size={22} /><span>Cài đặt hệ thống</span></button>)}
         </nav>
-        <div className="p-4 border-t border-gray-100 min-w-[16rem]"><div className="flex items-center space-x-3 mb-4 px-2"><div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold uppercase shrink-0">{user.fullname ? user.fullname.charAt(0) : 'U'}</div><div className="flex-1 min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{user.fullname}</p><p className="text-xs text-gray-500 truncate">{user.class || user.role}</p></div></div><button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"><LogOut size={16} /><span>Đăng xuất</span></button></div>
-      </aside>
-
-      {sidebarOpen && (<div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSidebarOpen(false)}></div>)}
-      <aside className={`fixed top-0 left-0 bottom-0 w-64 bg-white z-40 transform transition-transform duration-300 md:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-         <div className="p-4 flex items-center border-b space-x-2"><img src="./logo.png" alt="Logo" className="w-8 h-8 object-contain" /><span className="font-bold text-xl flex-1 truncate">{systemConfig.schoolName}</span><button onClick={() => setSidebarOpen(false)}><X size={24} /></button></div>
-         <nav className="p-4 space-y-2">
-            <button onClick={() => {setActiveTab('dashboard'); setSidebarOpen(false)}} className={`w-full flex items-center space-x-3 p-3 rounded-lg ${activeTab === 'dashboard' ? 'bg-blue-50 text-primary' : ''}`}><LayoutDashboard size={20}/> <span>Tổng quan</span></button>
-            <button onClick={() => {setActiveTab('requests'); setSidebarOpen(false)}} className={`w-full flex items-center space-x-3 p-3 rounded-lg ${activeTab === 'requests' ? 'bg-blue-50 text-primary' : ''}`}><FileText size={20}/> <span>Đơn xin phép</span></button>
-            {user.role === Role.ADMIN && (<button onClick={() => {setActiveTab('settings'); setSidebarOpen(false)}} className={`w-full flex items-center space-x-3 p-3 rounded-lg ${activeTab === 'settings' ? 'bg-blue-50 text-primary' : ''}`}><Settings size={20}/> <span>Cài đặt hệ thống</span></button>)}
-            <hr className="my-2 border-gray-100" />
-            <button onClick={handleLogout} className="w-full flex items-center space-x-3 p-3 rounded-lg text-red-500 hover:bg-red-50"><LogOut size={20}/> <span>Đăng xuất</span></button>
-         </nav>
+        <div className="p-6 border-t border-gray-100 min-w-[18rem]"><button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 px-4 py-3 border border-gray-200 rounded-xl text-sm font-black text-gray-500 hover:bg-red-50 hover:text-red-500 transition-all"><LogOut size={18} /><span>ĐĂNG XUẤT</span></button></div>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shrink-0 no-print">
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 no-print">
           <div className="flex items-center">
-            <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-600 mr-2"><Menu size={24} /></button>
-            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="hidden md:flex text-gray-600 mr-4 hover:bg-gray-100 p-2 rounded-lg transition-colors"><Menu size={24} /></button>
-            <h2 className="text-lg font-semibold text-gray-800">{activeTab === 'dashboard' ? 'Tổng quan' : activeTab === 'requests' ? 'Quản lý đơn' : 'Cài đặt'}</h2>
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-600 mr-4"><Menu size={24} /></button>
+            <h2 className="text-xl font-black text-gray-800">{activeTab === 'dashboard' ? 'Thống kê' : activeTab === 'requests' ? 'Đơn xin phép' : 'Cài đặt'}</h2>
           </div>
-          <div className="flex items-center space-x-4">
-             <span className={`px-3 py-1 rounded-full text-xs font-semibold 
-               ${user.role === Role.ADMIN ? 'bg-purple-100 text-purple-700' : 
-                 user.role === Role.GVCN ? 'bg-orange-100 text-orange-700' : 
-                 'bg-blue-100 text-blue-700'}`}>
-               {user.role}
-             </span>
+          <div className="flex items-center space-x-3">
+             <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm border ${user.role === Role.ADMIN ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>{user.role}</span>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 main-content">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 main-content">
           {activeTab === 'dashboard' && (
-            <div className="max-w-6xl mx-auto">
-              {/* Dashboard sections... */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 no-print">
-                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs text-gray-500 mb-1">Tổng đơn (T{selectedDashboardWeek})</p><p className="text-xl font-bold text-gray-800">{data.filter(r => Number(r.week) === selectedDashboardWeek).length}</p></div>
-                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs text-gray-500 mb-1">Chờ duyệt</p><p className="text-xl font-bold text-yellow-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.PENDING).length}</p></div>
-                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs text-gray-500 mb-1">Đã duyệt</p><p className="text-xl font-bold text-green-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.APPROVED).length}</p></div>
-                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs text-gray-500 mb-1">Từ chối</p><p className="text-xl font-bold text-red-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.REJECTED).length}</p></div>
+            <div className="max-w-7xl mx-auto">
+               <div className="mb-6 flex items-center justify-between bg-white p-4 rounded-2xl border border-gray-100 shadow-sm no-print">
+                  <span className="text-sm font-bold text-gray-500">Xem dữ liệu tuần:</span>
+                  <select className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm font-bold outline-none" value={selectedDashboardWeek} onChange={(e) => setSelectedDashboardWeek(Number(e.target.value))}>
+                    {availableWeeks.map(w => <option key={w} value={w}>Tuần {w}</option>)}
+                  </select>
+               </div>
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 no-print">
+                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tổng đơn</p><p className="text-3xl font-black text-gray-800">{data.filter(r => Number(r.week) === selectedDashboardWeek).length}</p></div>
+                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Đang chờ</p><p className="text-3xl font-black text-yellow-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.PENDING).length}</p></div>
+                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Đã duyệt</p><p className="text-3xl font-black text-green-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.APPROVED).length}</p></div>
+                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Từ chối</p><p className="text-3xl font-black text-red-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.REJECTED).length}</p></div>
               </div>
               <DashboardChart allData={data} systemConfig={systemConfig} selectedWeek={selectedDashboardWeek} />
             </div>
           )}
 
           {activeTab === 'requests' && (
-            <div className="max-w-6xl mx-auto h-full flex flex-col">
-              {/* Toolbar and list... */}
-              <div className="bg-white p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
-                <div className="flex flex-1 flex-wrap items-center gap-2">
-                   <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input type="text" placeholder="Tìm tên, ID..." className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:border-primary outline-none text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-                   <select className="border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none" value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)}><option value="">Mọi tuần</option>{availableWeeks.map(w => <option key={w} value={w}>Tuần {w}</option>)}</select>
-                   <select className="border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none" value={filterClass} onChange={(e) => setFilterClass(e.target.value)}><option value="">Mọi lớp</option>{systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
-                   <select className="border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="">Mọi trạng thái</option>{Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}</select>
+            <div className="max-w-7xl mx-auto h-full flex flex-col">
+              <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 mb-6 space-y-4 no-print">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex flex-1 flex-wrap items-center gap-3">
+                    <div className="relative flex-1 min-w-[280px]"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input type="text" placeholder="Tìm tên..." className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 focus:border-primary outline-none text-sm font-medium" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+                    <select className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none" value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)}><option value="">Tuần học</option>{availableWeeks.map(w => <option key={w} value={w}>Tuần {w}</option>)}</select>
+                    <select className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="">Trạng thái</option>{Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}</select>
+                  </div>
+                  {canCreate && (<button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} className="bg-primary hover:bg-blue-600 text-white px-8 py-3.5 rounded-2xl text-sm font-black flex items-center justify-center space-x-2 shadow-xl shadow-primary/25 transition-all"><Plus size={20} /><span>TẠO ĐƠN</span></button>)}
                 </div>
-                {canCreate && (<button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} className="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center space-x-2 shadow-sm"><Plus size={18} /><span>Tạo đơn</span></button>)}
               </div>
 
-              <div className="bg-white border-x border-gray-200 flex-1 overflow-hidden flex flex-col">
-                <div className="hidden md:block flex-1 overflow-auto">
-                  <table className="w-full text-sm text-left text-gray-500 relative">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b sticky top-0 z-10">
-                      <tr>
-                        {visibleColumns.includes('week') && <th className="px-6 py-3 bg-gray-50">Tuần</th>}
-                        {visibleColumns.includes('studentName') && <th className="px-6 py-3 bg-gray-50">Học sinh</th>}
-                        {visibleColumns.includes('class') && <th className="px-6 py-3 bg-gray-50">Lớp</th>}
-                        {visibleColumns.includes('date') && <th className="px-6 py-3 bg-gray-50">Ngày nghỉ</th>}
-                        {visibleColumns.includes('reason') && <th className="px-6 py-3 bg-gray-50">Lý do</th>}
-                        {visibleColumns.includes('attachment') && <th className="px-6 py-3 text-center bg-gray-50">Minh chứng</th>}
-                        {visibleColumns.includes('status') && <th className="px-6 py-3 bg-gray-50">Trạng thái</th>}
-                        {visibleColumns.includes('approver') && <th className="px-6 py-3 bg-gray-50">Người duyệt</th>}
-                        {(canApprove || canDelete) && <th className="px-6 py-3 text-center bg-gray-50 no-print">Hành động</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedData.length === 0 ? (<tr><td colSpan={10} className="px-6 py-8 text-center text-gray-400">Không có dữ liệu</td></tr>) : (
-                        paginatedData.map((item) => (
-                          <tr key={item.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
-                            {visibleColumns.includes('week') && <td className="px-6 py-4 text-center font-bold text-gray-400">{item.week}</td>}
-                            {visibleColumns.includes('studentName') && <td className="px-6 py-4 font-medium text-gray-900">{item.studentName}</td>}
-                            {visibleColumns.includes('class') && <td className="px-6 py-4">{item.class}</td>}
-                            {visibleColumns.includes('date') && <td className="px-6 py-4 whitespace-nowrap">{formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate && ` - ${formatDateDisplay(item.toDate)}`}</td>}
-                            {visibleColumns.includes('reason') && <td className="px-6 py-4 truncate max-w-[120px]">{item.reason}</td>}
-                            {visibleColumns.includes('attachment') && (<td className="px-6 py-4 text-center">{item.attachmentUrl ? (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="p-2 text-blue-500 hover:bg-blue-50 rounded-full no-print"><Eye size={18} /></button>) : (<span className="text-gray-300">-</span>)}</td>)}
-                            {visibleColumns.includes('status') && (<td className="px-6 py-4"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${item.status === Status.APPROVED ? 'bg-green-100 text-green-700' : item.status === Status.REJECTED ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status}</span></td>)}
-                            {visibleColumns.includes('approver') && <td className="px-6 py-4 text-xs italic text-gray-500">{item.approver || '-'}</td>}
-                            <td className="px-6 py-4 text-center no-print">
-                                <div className="flex items-center justify-center space-x-2">
-                                  {canApprove && item.status === Status.PENDING && (
-                                    <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="text-green-600 p-1"><CheckCircle size={18} /></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="text-red-600 p-1"><XCircle size={18} /></button></>
-                                  )}
-                                  {canDelete && (<button onClick={() => handleDelete(item.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={18} /></button>)}
-                                  {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} className="text-blue-500 p-1"><Edit2 size={18} /></button>)}
-                                </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile View Card */}
-                <div className="md:hidden flex-1 overflow-auto bg-gray-50 p-2 space-y-3 no-print">
-                   {paginatedData.map(item => (
-                      <div key={item.id} className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 relative">
-                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${item.status === Status.APPROVED ? 'bg-green-500' : item.status === Status.REJECTED ? 'bg-red-500' : 'bg-yellow-500'}`}></div>
-                        <div className="flex justify-between mb-2">
-                           <span className="text-xs font-bold text-gray-400">Tuần {item.week}</span>
-                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${item.status === Status.APPROVED ? 'bg-green-100 text-green-700' : item.status === Status.REJECTED ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status}</span>
-                        </div>
-                        <h4 className="font-bold text-gray-800">{item.studentName} - {item.class}</h4>
-                        <p className="text-sm text-gray-500 mb-2 truncate">{item.reason}</p>
-                        <div className="flex justify-between items-center pt-2 border-t border-gray-50">
-                           <div className="flex space-x-2">
-                             {item.attachmentUrl && (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="text-blue-500"><Eye size={16}/></button>)}
-                           </div>
-                           <div className="flex space-x-2">
-                             {canApprove && item.status === Status.PENDING && (<><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="text-green-600"><CheckCircle size={18}/></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="text-red-600"><XCircle size={18}/></button></>)}
-                             {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => {setEditingItem(item); setIsModalOpen(true);}} className="text-blue-500"><Edit2 size={18}/></button>)}
-                           </div>
-                        </div>
+              {/* MOBILE CARD VIEW - FULL DETAILS */}
+              <div className="md:hidden flex-1 overflow-auto space-y-4 no-print pb-10">
+                {paginatedData.length === 0 ? (<div className="text-center py-20 text-gray-400 font-bold">Chưa có đơn nào</div>) : (
+                  paginatedData.map(item => (
+                    <div key={item.id} className="bg-white rounded-3xl shadow-md p-5 border border-gray-100 relative overflow-hidden active:scale-[0.99] transition-transform">
+                      <div className={`absolute left-0 top-0 bottom-0 w-2 ${item.status === Status.APPROVED ? 'bg-green-500' : item.status === Status.REJECTED ? 'bg-red-500' : 'bg-yellow-500'}`}></div>
+                      
+                      <div className="flex justify-between items-start mb-4">
+                         <div className="flex-1">
+                            <h4 className="font-black text-gray-900 text-lg leading-tight">{item.studentName}</h4>
+                            <p className="text-sm font-bold text-gray-500">Lớp: <span className="text-gray-800">{item.class}</span></p>
+                         </div>
+                         <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${item.status === Status.APPROVED ? 'bg-green-500 text-white' : item.status === Status.REJECTED ? 'bg-red-500 text-white' : 'bg-yellow-400 text-yellow-900'}`}>{item.status}</span>
                       </div>
-                   ))}
-                </div>
+
+                      <div className="space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                         <div className="flex items-start space-x-3">
+                            <Calendar size={16} className="text-gray-400 mt-0.5" />
+                            <div className="flex-1">
+                               <span className="text-[10px] text-gray-400 uppercase font-black block leading-none mb-1">Thời gian vắng</span>
+                               <span className="text-sm text-gray-800 font-bold">{formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate ? ` - ${formatDateDisplay(item.toDate)}` : ''}</span>
+                            </div>
+                         </div>
+                         <div className="flex items-start space-x-3">
+                            <FileText size={16} className="text-gray-400 mt-0.5" />
+                            <div className="flex-1">
+                               <span className="text-[10px] text-gray-400 uppercase font-black block leading-none mb-1">Lý do vắng</span>
+                               <span className="text-sm text-gray-700 font-medium">{item.reason}</span>
+                            </div>
+                         </div>
+                         <div className="flex items-start space-x-3 border-t border-gray-200 pt-3 mt-1">
+                            <CheckCircle size={16} className="text-green-500 mt-0.5" />
+                            <div className="flex-1">
+                               <span className="text-[10px] text-gray-400 uppercase font-black block leading-none mb-1">Người duyệt đơn</span>
+                               <span className="text-sm font-black text-gray-900">{item.status !== Status.PENDING ? (item.approver || 'Hệ thống') : ''}</span>
+                            </div>
+                         </div>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-5">
+                         <div className="flex space-x-2">
+                           {item.attachmentUrl && (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="flex items-center space-x-2 text-primary text-xs font-black bg-blue-50 px-3 py-2 rounded-xl border border-blue-100"><ImageIcon size={16}/> <span>Minh chứng</span></button>)}
+                         </div>
+                         <div className="flex items-center space-x-2">
+                           {canApprove && item.status === Status.PENDING && (
+                             <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="p-2.5 bg-green-50 text-green-600 rounded-xl border border-green-100"><CheckCircle size={22}/></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="p-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100"><XCircle size={22}/></button></>
+                           )}
+                           {canDelete && (<button onClick={() => handleDelete(item.id)} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl border border-gray-100"><Trash2 size={22}/></button>)}
+                           {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => {setEditingItem(item); setIsModalOpen(true);}} className="p-2.5 bg-blue-50 text-blue-500 rounded-xl border border-blue-100"><Edit2 size={22}/></button>)}
+                         </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
-              {/* Pagination controls... */}
+              {/* Desktop Table View */}
+              <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-gray-100 overflow-auto flex-1">
+                <table className="w-full text-sm text-left text-gray-500">
+                  <thead className="text-[10px] text-gray-400 uppercase font-black bg-gray-50/50 border-b sticky top-0 tracking-widest">
+                    <tr>
+                      <th className="px-6 py-4">Tuần</th>
+                      <th className="px-6 py-4">Học sinh</th>
+                      <th className="px-6 py-4">Lớp</th>
+                      <th className="px-6 py-4">Ngày nghỉ</th>
+                      <th className="px-6 py-4">Lý do</th>
+                      <th className="px-6 py-4 text-center">Minh chứng</th>
+                      <th className="px-6 py-4">Trạng thái</th>
+                      <th className="px-6 py-4">Người duyệt</th>
+                      <th className="px-6 py-4 text-center no-print">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {paginatedData.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-5 font-black text-gray-400">{item.week}</td>
+                        <td className="px-6 py-5 font-bold text-gray-900">{item.studentName}</td>
+                        <td className="px-6 py-5">{item.class}</td>
+                        <td className="px-6 py-5 whitespace-nowrap">{formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate && ` - ${formatDateDisplay(item.toDate)}`}</td>
+                        <td className="px-6 py-5 text-gray-500">{item.reason}</td>
+                        <td className="px-6 py-5 text-center">{item.attachmentUrl ? (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="p-2 text-primary hover:bg-blue-50 rounded-xl"><Eye size={18} /></button>) : (<span className="text-gray-300">-</span>)}</td>
+                        <td className="px-6 py-5"><span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${item.status === Status.APPROVED ? 'bg-green-100 text-green-700' : item.status === Status.REJECTED ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status}</span></td>
+                        <td className="px-6 py-5 text-xs font-bold">{item.status !== Status.PENDING ? (item.approver || 'Hệ thống') : ''}</td>
+                        <td className="px-6 py-5 text-center no-print">
+                            <div className="flex items-center justify-center space-x-2">
+                              {canApprove && item.status === Status.PENDING && (
+                                <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="text-green-600 p-2"><CheckCircle size={20} /></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="text-red-600 p-2"><XCircle size={20} /></button></>
+                              )}
+                              {canDelete && (<button onClick={() => handleDelete(item.id)} className="text-gray-400 p-2 hover:bg-gray-50 rounded-lg"><Trash2 size={20} /></button>)}
+                              {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} className="text-blue-500 p-2"><Edit2 size={20} /></button>)}
+                            </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
-          {activeTab === 'settings' && user.role === Role.ADMIN && (<div className="max-w-4xl mx-auto space-y-8"><UserManagement users={allUsers} onRefresh={loadData} classes={systemConfig.classes} /><SystemSettings config={systemConfig} onRefresh={loadData} /></div>)}
+          {activeTab === 'settings' && user.role === Role.ADMIN && (<div className="max-w-5xl mx-auto space-y-8"><UserManagement users={allUsers} onRefresh={loadData} classes={systemConfig.classes} /><SystemSettings config={systemConfig} onRefresh={loadData} /></div>)}
         </div>
       </main>
 
-      {isModalOpen && (<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col"><div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center"><h3 className="text-lg font-bold text-gray-800">{editingItem ? 'Sửa đơn' : 'Tạo đơn mới'}</h3><button onClick={() => setIsModalOpen(false)}><X size={20} /></button></div><div className="p-6 overflow-y-auto"><DynamicForm config={formConfig} initialData={editingItem || { week: systemConfig.currentWeek }} onSubmit={editingItem ? handleUpdate : handleCreate} onCancel={() => setIsModalOpen(false)} isSubmitting={isSubmitting} /></div></div></div>)}
+      {isModalOpen && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col"><div className="px-8 py-5 border-b bg-gray-50/50 flex justify-between items-center"><h3 className="text-xl font-black text-gray-800">{editingItem ? 'SỬA ĐƠN' : 'TẠO ĐƠN'}</h3><button onClick={() => setIsModalOpen(false)}><X size={20} /></button></div><div className="p-8 overflow-y-auto"><DynamicForm config={formConfig} initialData={editingItem || { week: systemConfig.currentWeek }} onSubmit={editingItem ? handleUpdate : handleCreate} onCancel={() => setIsModalOpen(false)} isSubmitting={isSubmitting} /></div></div></div>)}
       <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
     </div>
   );
