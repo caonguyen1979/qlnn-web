@@ -1,7 +1,7 @@
 
 import { User, Role, LeaveRequest, Status, ApiResponse, DashboardStats, SystemConfigData } from '../types';
 
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyvj5mG2y9_Ym6_Zz5XqXqXqXqXq/exec"; 
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxzZGX6G6LASRT_kudGvRO69iVyZ81bfr0WDXcA0G5GKjHXngkCu-GMwnhdO26stHoE/exec"; 
 
 const isGAS = typeof window !== 'undefined' && (window as any).google && (window as any).google.script;
 const isPlaceholderUrl = GAS_API_URL.includes("AKfycbyvj5mG2y9_Ym6_Zz5XqXqXqXqXq");
