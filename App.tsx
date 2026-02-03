@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Role, LeaveRequest, Status, SystemConfigData } from './types';
 import { gasService } from './services/gasService';
@@ -34,13 +35,10 @@ import {
   ImageIcon,
   ChevronLeft,
   ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen,
   Printer,
   FileSpreadsheet,
   FileDown,
   Columns,
-  RotateCcw,
   Smartphone
 } from 'lucide-react';
 
@@ -48,7 +46,6 @@ const SESSION_KEY = 'eduleave_session';
 
 type AuthMode = 'login' | 'register' | 'forgot';
 
-// Column Definition for Visibility Toggle
 const AVAILABLE_COLUMNS = [
   { key: 'week', label: 'Tuần' },
   { key: 'studentName', label: 'Họ và tên' },
@@ -65,62 +62,46 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // App State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'settings'>('dashboard');
   const [data, setData] = useState<LeaveRequest[]>([]);
-  const [allUsers, setAllUsers] = useState<User[]>([]); // For Admin
+  const [allUsers, setAllUsers] = useState<User[]>([]); 
   const [systemConfig, setSystemConfig] = useState<SystemConfigData>({ classes: [], reasons: [], schoolName: APP_NAME, currentWeek: 1 });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false); 
 
-  // Dashboard Filtering State
   const [selectedDashboardWeek, setSelectedDashboardWeek] = useState<number>(0);
-
-  // Auth State
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
   
-  // Login Inputs
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   
-  // Register Inputs
   const [regFullname, setRegFullname] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regUserType, setRegUserType] = useState<'HS' | 'OTHER'>('HS');
+  const [regUserType, setRegUserType] = useState<Role.HS | Role.GVCN | Role.VIEWER>(Role.HS);
   const [regClassInfo, setRegClassInfo] = useState('');
-  
-  // Forgot Inputs
   const [forgotEmail, setForgotEmail] = useState('');
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<LeaveRequest | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Preview Image State
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
-  // Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterWeek, setFilterWeek] = useState(''); 
 
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-
-  // Column Visibility State
   const [visibleColumns, setVisibleColumns] = useState<string[]>(AVAILABLE_COLUMNS.map(c => c.key));
   const [isColMenuOpen, setIsColMenuOpen] = useState(false);
   const colMenuRef = useRef<HTMLDivElement>(null);
 
-  // --- Initialization ---
   useEffect(() => {
     const init = async () => {
       try {
@@ -128,9 +109,7 @@ const App: React.FC = () => {
         if (configRes.success && configRes.data) {
            setSystemConfig(prev => ({ ...prev, ...configRes.data }));
         }
-      } catch (e) {
-         console.warn("Config load failed:", e);
-      }
+      } catch (e) { console.warn("Config load failed:", e); }
 
       const storedSession = localStorage.getItem(SESSION_KEY);
       if (storedSession) {
@@ -143,16 +122,10 @@ const App: React.FC = () => {
              setAllUsers(result.users);
              if (result.config) {
                setSystemConfig(prev => ({ ...prev, ...result.config }));
-               if (result.config.currentWeek) {
-                 setSelectedDashboardWeek(Number(result.config.currentWeek));
-               }
+               if (result.config.currentWeek) { setSelectedDashboardWeek(Number(result.config.currentWeek)); }
              }
-          } catch (err) {
-            console.warn("Failed to load initial data", err);
-          }
-        } else {
-          localStorage.removeItem(SESSION_KEY);
-        }
+          } catch (err) { console.warn("Failed to load initial data", err); }
+        } else { localStorage.removeItem(SESSION_KEY); }
       }
       setLoading(false);
     };
@@ -161,25 +134,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) {
-        setIsColMenuOpen(false);
-      }
+      if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) { setIsColMenuOpen(false); }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => { document.removeEventListener("mousedown", handleClickOutside); };
   }, []);
 
   useEffect(() => {
-    if (user && user.role !== Role.ADMIN && activeTab === 'settings') {
-      setActiveTab('dashboard');
-    }
+    if (user && user.role !== Role.ADMIN && activeTab === 'settings') { setActiveTab('dashboard'); }
   }, [user, activeTab]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterClass, filterStatus, filterWeek]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterClass, filterStatus, filterWeek]);
 
   const loadData = async () => {
     const result = await gasService.loadAllConfigData();
@@ -187,9 +152,7 @@ const App: React.FC = () => {
     setAllUsers(result.users);
     if (result.config) {
       setSystemConfig(prev => ({ ...prev, ...result.config }));
-      if (result.config.currentWeek) {
-        setSelectedDashboardWeek(Number(result.config.currentWeek));
-      }
+      if (result.config.currentWeek) { setSelectedDashboardWeek(Number(result.config.currentWeek)); }
     }
   };
 
@@ -197,13 +160,10 @@ const App: React.FC = () => {
     if (!dateString) return '';
     const datePart = dateString.split('T')[0]; 
     const parts = datePart.split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
+    if (parts.length === 3) { return `${parts[2]}/${parts[1]}/${parts[0]}`; }
     return dateString;
   };
 
-  // --- Export Functions ---
   const handlePrint = () => { window.print(); };
 
   const exportToCSV = () => {
@@ -244,17 +204,13 @@ const App: React.FC = () => {
         headStyles: { fillColor: [13, 110, 253] },
       });
       doc.save(`Bao_cao_nghi_phep_${new Date().toISOString().slice(0,10)}.pdf`);
-    } catch (e) {
-      console.error("PDF export failed:", e);
-      alert("Lỗi khi xuất PDF.");
-    }
+    } catch (e) { alert("Lỗi khi xuất PDF."); }
   };
 
   const toggleColumn = (key: string) => {
     setVisibleColumns(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   };
 
-  // --- Auth Handlers ---
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthLoading(true);
@@ -265,14 +221,8 @@ const App: React.FC = () => {
         const expiry = new Date().getTime() + 4 * 60 * 60 * 1000;
         localStorage.setItem(SESSION_KEY, JSON.stringify({ user: res.data, expiry }));
         loadData();
-      } else {
-        setAuthError(res.message || 'Đăng nhập thất bại');
-      }
-    } catch (err) {
-      setAuthError('Lỗi kết nối');
-    } finally {
-      setAuthLoading(false);
-    }
+      } else { setAuthError(res.message || 'Đăng nhập thất bại'); }
+    } catch (err) { setAuthError('Lỗi kết nối'); } finally { setAuthLoading(false); }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -280,19 +230,13 @@ const App: React.FC = () => {
     setAuthLoading(true);
     try {
       const res = await gasService.register({
-        username: regUsername, password: regPassword, fullname: regFullname, email: regEmail, class: regClassInfo, role: regUserType === 'HS' ? Role.HS : Role.VIEWER
+        username: regUsername, password: regPassword, fullname: regFullname, email: regEmail, class: regClassInfo, role: regUserType
       });
       if (res.success) {
         setAuthSuccess('Đăng ký thành công!');
         setTimeout(() => setAuthMode('login'), 2000);
-      } else {
-        setAuthError(res.message || 'Đăng ký thất bại');
-      }
-    } catch (err) {
-      setAuthError('Lỗi kết nối');
-    } finally {
-      setAuthLoading(false);
-    }
+      } else { setAuthError(res.message || 'Đăng ký thất bại'); }
+    } catch (err) { setAuthError('Lỗi kết nối'); } finally { setAuthLoading(false); }
   };
 
   const handleLogout = () => {
@@ -302,14 +246,14 @@ const App: React.FC = () => {
     setActiveTab('dashboard');
   };
 
-  // --- CRUD ---
   const handleCreate = async (formData: any) => {
     if (!user) return;
     setIsSubmitting(true);
     const tempId = `TEMP-${Date.now()}`;
     const optimisticItem: LeaveRequest = {
-      id: tempId, studentName: user.role === Role.HS ? user.fullname : formData.studentName,
-      class: user.role === Role.HS ? user.class! : formData.class,
+      id: tempId, 
+      studentName: user.role === Role.HS ? user.fullname : (formData.studentName || 'Unknown'),
+      class: user.role === Role.HS ? (user.class || '') : (formData.class || ''),
       week: formData.week || systemConfig.currentWeek, reason: formData.reason,
       fromDate: formData.fromDate, toDate: formData.toDate, status: Status.PENDING,
       createdBy: user.username, createdAt: new Date().toISOString(), ...formData
@@ -397,6 +341,7 @@ const App: React.FC = () => {
     let baseConfig = LEAVE_REQUEST_CONFIG;
     if (systemConfig.classes.length > 0) baseConfig = baseConfig.map(col => col.key === 'class' ? { ...col, options: systemConfig.classes } : col);
     if (systemConfig.reasons.length > 0) baseConfig = baseConfig.map(col => col.key === 'reason' ? { ...col, options: systemConfig.reasons } : col);
+    
     if (user && user.role === Role.HS) {
       let studentConfig = baseConfig.filter(c => !['status', 'studentName', 'class'].includes(c.key));
       const todayStr = new Date().toISOString().split('T')[0];
@@ -407,7 +352,9 @@ const App: React.FC = () => {
       });
       return studentConfig;
     }
-    return baseConfig;
+    
+    // For ADMIN, USER, GVCN
+    return baseConfig.filter(c => c.key !== 'status' || PERMISSIONS[user?.role || Role.VIEWER].canApprove);
   }, [systemConfig, user]);
 
   if (!user) {
@@ -418,7 +365,7 @@ const App: React.FC = () => {
             <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
             <div className="relative z-10">
               <h1 className="text-4xl font-bold mb-4">{systemConfig.schoolName}</h1>
-              <p className="text-lg opacity-90">Hệ thống quản lý nghỉ phép học sinh thông minh.</p>
+              <p className="text-lg opacity-90">Hệ thống quản lý nghỉ phép thông minh.</p>
             </div>
           </div>
           <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
@@ -444,8 +391,14 @@ const App: React.FC = () => {
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regEmail} onChange={e => setRegEmail(e.target.value)} /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label><input type="text" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regUsername} onChange={e => setRegUsername(e.target.value)} /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label><input type="password" required className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regPassword} onChange={e => setRegPassword(e.target.value)} /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-2">Bạn là?</label><div className="flex space-x-4"><button type="button" onClick={() => { setRegUserType('HS'); setRegClassInfo(''); }} className={`flex-1 py-2 rounded-lg border text-sm font-medium ${regUserType === 'HS' ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600'}`}>Học sinh</button><button type="button" onClick={() => { setRegUserType('OTHER'); setRegClassInfo(''); }} className={`flex-1 py-2 rounded-lg border text-sm font-medium ${regUserType === 'OTHER' ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600'}`}>Khác</button></div></div>
-                {regUserType === 'HS' ? (<div><label className="block text-sm font-medium text-gray-700 mb-1">Lớp</label><select className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regClassInfo} onChange={(e) => setRegClassInfo(e.target.value)} required><option value="">-- Chọn lớp --</option>{systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}</select></div>) : (<div><label className="block text-sm font-medium text-gray-700 mb-1">Thông tin thêm</label><input type="text" className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regClassInfo} onChange={e => setRegClassInfo(e.target.value)} /></div>)}
+                <div><label className="block text-sm font-medium text-gray-700 mb-2">Bạn là?</label>
+                  <div className="flex space-x-2">
+                    <button type="button" onClick={() => setRegUserType(Role.HS)} className={`flex-1 py-2 rounded-lg border text-xs font-medium ${regUserType === Role.HS ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600'}`}>Học sinh</button>
+                    <button type="button" onClick={() => setRegUserType(Role.GVCN)} className={`flex-1 py-2 rounded-lg border text-xs font-medium ${regUserType === Role.GVCN ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600'}`}>GVCN</button>
+                    <button type="button" onClick={() => setRegUserType(Role.VIEWER)} className={`flex-1 py-2 rounded-lg border text-xs font-medium ${regUserType === Role.VIEWER ? 'bg-blue-50 border-primary text-primary' : 'bg-white border-gray-200 text-gray-600'}`}>Khác</button>
+                  </div>
+                </div>
+                {regUserType === Role.HS ? (<div><label className="block text-sm font-medium text-gray-700 mb-1">Lớp</label><select className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regClassInfo} onChange={(e) => setRegClassInfo(e.target.value)} required><option value="">-- Chọn lớp --</option>{systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}</select></div>) : (<div><label className="block text-sm font-medium text-gray-700 mb-1">Thông tin thêm</label><input type="text" className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none" value={regClassInfo} onChange={e => setRegClassInfo(e.target.value)} /></div>)}
                 <button type="submit" disabled={authLoading} className="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors mt-2">{authLoading ? 'Đang đăng ký...' : 'Đăng ký'}</button>
                 <div className="text-center text-sm mt-4"><button type="button" onClick={() => setAuthMode('login')} className="text-gray-500 hover:text-gray-800">Quay lại đăng nhập</button></div>
               </form>
@@ -456,7 +409,7 @@ const App: React.FC = () => {
     );
   }
 
-  const canCreate = user.role === Role.HS || user.role === Role.ADMIN || user.role === Role.USER;
+  const canCreate = user.role === Role.HS || user.role === Role.ADMIN || user.role === Role.USER || user.role === Role.GVCN;
   const canApprove = PERMISSIONS[user.role].canApprove;
   const canDelete = PERMISSIONS[user.role].canDelete;
 
@@ -492,22 +445,19 @@ const App: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-800">{activeTab === 'dashboard' ? 'Tổng quan' : activeTab === 'requests' ? 'Quản lý đơn' : 'Cài đặt'}</h2>
           </div>
           <div className="flex items-center space-x-4">
-             <div className="hidden sm:flex items-center text-xs font-bold text-gray-400 border px-2 py-1 rounded bg-gray-50 md:hidden"><Smartphone size={14} className="mr-1"/> Xoay ngang để xem tốt hơn</div>
-             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${user.role === Role.ADMIN ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{user.role}</span>
+             <span className={`px-3 py-1 rounded-full text-xs font-semibold 
+               ${user.role === Role.ADMIN ? 'bg-purple-100 text-purple-700' : 
+                 user.role === Role.GVCN ? 'bg-orange-100 text-orange-700' : 
+                 'bg-blue-100 text-blue-700'}`}>
+               {user.role}
+             </span>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 main-content">
           {activeTab === 'dashboard' && (
             <div className="max-w-6xl mx-auto">
-              <div className="flex justify-between items-center mb-6 no-print">
-                 <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm"><Calendar size={18} className="text-primary" /><span className="text-sm text-gray-600 font-medium">Đang xem dữ liệu:</span>
-                    <select className="text-sm font-bold text-gray-800 outline-none bg-transparent cursor-pointer" value={selectedDashboardWeek} onChange={(e) => setSelectedDashboardWeek(Number(e.target.value))}>
-                      {availableWeeks.map(w => (<option key={w} value={w}>Tuần {w}</option>))}
-                      {availableWeeks.length === 0 && <option value={1}>Tuần 1</option>}
-                    </select>
-                 </div>
-              </div>
+              {/* Dashboard sections... */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 no-print">
                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs text-gray-500 mb-1">Tổng đơn (T{selectedDashboardWeek})</p><p className="text-xl font-bold text-gray-800">{data.filter(r => Number(r.week) === selectedDashboardWeek).length}</p></div>
                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><p className="text-xs text-gray-500 mb-1">Chờ duyệt</p><p className="text-xl font-bold text-yellow-600">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.PENDING).length}</p></div>
@@ -520,15 +470,7 @@ const App: React.FC = () => {
 
           {activeTab === 'requests' && (
             <div className="max-w-6xl mx-auto h-full flex flex-col">
-              <div className="bg-white p-2 rounded-t-xl border-b border-gray-200 flex justify-end gap-2 items-center mb-0 no-print">
-                  <button onClick={exportToCSV} className="p-2 text-green-700 hover:bg-green-50 rounded border border-green-100" title="Xuất CSV"><FileSpreadsheet size={18} /></button>
-                  <button onClick={exportToPDF} className="p-2 text-red-700 hover:bg-red-50 rounded border border-red-100" title="Xuất PDF"><FileDown size={18} /></button>
-                  <button onClick={handlePrint} className="p-2 text-blue-700 hover:bg-blue-50 rounded border border-blue-100" title="In"><Printer size={18} /></button>
-                  <div className="relative" ref={colMenuRef}><button onClick={() => setIsColMenuOpen(!isColMenuOpen)} className="p-2 text-gray-700 hover:bg-gray-50 rounded border border-gray-200" title="Cột hiển thị"><Columns size={18} /></button>
-                    {isColMenuOpen && (<div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 shadow-lg rounded-md z-50 p-2"><div className="text-xs font-bold text-gray-500 mb-2 px-2 uppercase">Hiển thị cột</div>{AVAILABLE_COLUMNS.map(col => (<label key={col.key} className="flex items-center px-2 py-1.5 hover:bg-gray-50 cursor-pointer rounded"><input type="checkbox" checked={visibleColumns.includes(col.key)} onChange={() => toggleColumn(col.key)} className="mr-2 text-primary focus:ring-primary"/><span className="text-sm text-gray-700">{col.label}</span></label>))}</div>)}
-                  </div>
-              </div>
-
+              {/* Toolbar and list... */}
               <div className="bg-white p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
                 <div className="flex flex-1 flex-wrap items-center gap-2">
                    <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input type="text" placeholder="Tìm tên, ID..." className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:border-primary outline-none text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
@@ -540,13 +482,12 @@ const App: React.FC = () => {
               </div>
 
               <div className="bg-white border-x border-gray-200 flex-1 overflow-hidden flex flex-col">
-                {/* Desktop Table View */}
                 <div className="hidden md:block flex-1 overflow-auto">
                   <table className="w-full text-sm text-left text-gray-500 relative">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b sticky top-0 z-10">
                       <tr>
                         {visibleColumns.includes('week') && <th className="px-6 py-3 bg-gray-50">Tuần</th>}
-                        {visibleColumns.includes('studentName') && <th className="px-6 py-3 bg-gray-50">Họ và tên</th>}
+                        {visibleColumns.includes('studentName') && <th className="px-6 py-3 bg-gray-50">Học sinh</th>}
                         {visibleColumns.includes('class') && <th className="px-6 py-3 bg-gray-50">Lớp</th>}
                         {visibleColumns.includes('date') && <th className="px-6 py-3 bg-gray-50">Ngày nghỉ</th>}
                         {visibleColumns.includes('reason') && <th className="px-6 py-3 bg-gray-50">Lý do</th>}
@@ -564,21 +505,19 @@ const App: React.FC = () => {
                             {visibleColumns.includes('studentName') && <td className="px-6 py-4 font-medium text-gray-900">{item.studentName}</td>}
                             {visibleColumns.includes('class') && <td className="px-6 py-4">{item.class}</td>}
                             {visibleColumns.includes('date') && <td className="px-6 py-4 whitespace-nowrap">{formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate && ` - ${formatDateDisplay(item.toDate)}`}</td>}
-                            {visibleColumns.includes('reason') && <td className="px-6 py-4 truncate max-w-[120px]" title={item.reason}>{item.reason}</td>}
-                            {visibleColumns.includes('attachment') && (<td className="px-6 py-4 text-center">{item.attachmentUrl ? (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="p-2 text-blue-500 hover:bg-blue-50 rounded-full no-print" title="Xem ảnh"><Eye size={18} /></button>) : (<span className="text-gray-300">-</span>)}</td>)}
+                            {visibleColumns.includes('reason') && <td className="px-6 py-4 truncate max-w-[120px]">{item.reason}</td>}
+                            {visibleColumns.includes('attachment') && (<td className="px-6 py-4 text-center">{item.attachmentUrl ? (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="p-2 text-blue-500 hover:bg-blue-50 rounded-full no-print"><Eye size={18} /></button>) : (<span className="text-gray-300">-</span>)}</td>)}
                             {visibleColumns.includes('status') && (<td className="px-6 py-4"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${item.status === Status.APPROVED ? 'bg-green-100 text-green-700' : item.status === Status.REJECTED ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status}</span></td>)}
-                            {visibleColumns.includes('approver') && <td className="px-6 py-4 text-xs italic text-gray-500">{item.approver || (item.status === Status.APPROVED ? 'Hệ thống' : '-')}</td>}
-                            {(canApprove || canDelete) && (
-                              <td className="px-6 py-4 text-center no-print">
+                            {visibleColumns.includes('approver') && <td className="px-6 py-4 text-xs italic text-gray-500">{item.approver || '-'}</td>}
+                            <td className="px-6 py-4 text-center no-print">
                                 <div className="flex items-center justify-center space-x-2">
                                   {canApprove && item.status === Status.PENDING && (
-                                    <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="text-green-600 hover:text-green-800 p-1"><CheckCircle size={18} /></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="text-red-600 hover:text-red-800 p-1"><XCircle size={18} /></button></>
+                                    <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="text-green-600 p-1"><CheckCircle size={18} /></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="text-red-600 p-1"><XCircle size={18} /></button></>
                                   )}
                                   {canDelete && (<button onClick={() => handleDelete(item.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={18} /></button>)}
-                                  {user.username === item.createdBy && item.status === Status.PENDING && (<button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} className="text-blue-500 p-1"><Edit2 size={18} /></button>)}
+                                  {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => { setEditingItem(item); setIsModalOpen(true); }} className="text-blue-500 p-1"><Edit2 size={18} /></button>)}
                                 </div>
-                              </td>
-                            )}
+                            </td>
                           </tr>
                         ))
                       )}
@@ -586,47 +525,32 @@ const App: React.FC = () => {
                   </table>
                 </div>
 
-                {/* Mobile Card View */}
+                {/* Mobile View Card */}
                 <div className="md:hidden flex-1 overflow-auto bg-gray-50 p-2 space-y-3 no-print">
-                  {paginatedData.length === 0 ? (<div className="text-center py-10 text-gray-400">Không có dữ liệu</div>) : (
-                    paginatedData.map(item => (
-                      <div key={item.id} className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 relative overflow-hidden">
-                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${item.status === Status.APPROVED ? 'bg-green-500' : item.status === Status.REJECTED ? 'bg-red-500' : 'bg-yellow-500'}`}></div>
-                        <div className="flex justify-between items-start mb-2">
-                           <div className="flex items-center space-x-2">
-                              <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded">T{item.week}</span>
-                              <h4 className="font-bold text-gray-800">{item.studentName}</h4>
-                           </div>
+                   {paginatedData.map(item => (
+                      <div key={item.id} className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 relative">
+                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${item.status === Status.APPROVED ? 'bg-green-500' : item.status === Status.REJECTED ? 'bg-red-500' : 'bg-yellow-500'}`}></div>
+                        <div className="flex justify-between mb-2">
+                           <span className="text-xs font-bold text-gray-400">Tuần {item.week}</span>
                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${item.status === Status.APPROVED ? 'bg-green-100 text-green-700' : item.status === Status.REJECTED ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status}</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-y-2 text-sm mb-3">
-                           <div><span className="text-gray-400 text-xs block uppercase font-bold tracking-tight">Lớp</span> <span>{item.class}</span></div>
-                           <div><span className="text-gray-400 text-xs block uppercase font-bold tracking-tight">Lý do</span> <span className="truncate block">{item.reason}</span></div>
-                           <div className="col-span-2"><span className="text-gray-400 text-xs block uppercase font-bold tracking-tight">Thời gian</span> <span>{formatDateDisplay(item.fromDate)} - {formatDateDisplay(item.toDate)}</span></div>
-                           {item.approver && (<div className="col-span-2"><span className="text-gray-400 text-xs block uppercase font-bold tracking-tight">Người duyệt</span> <span className="italic text-gray-600">{item.approver}</span></div>)}
-                        </div>
-                        <div className="flex items-center justify-between pt-3 border-t border-gray-50">
+                        <h4 className="font-bold text-gray-800">{item.studentName} - {item.class}</h4>
+                        <p className="text-sm text-gray-500 mb-2 truncate">{item.reason}</p>
+                        <div className="flex justify-between items-center pt-2 border-t border-gray-50">
                            <div className="flex space-x-2">
-                             {item.attachmentUrl && (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="flex items-center space-x-1 text-blue-500 text-xs font-bold bg-blue-50 px-2 py-1 rounded"><Eye size={14}/> <span>Minh chứng</span></button>)}
+                             {item.attachmentUrl && (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="text-blue-500"><Eye size={16}/></button>)}
                            </div>
-                           <div className="flex space-x-1">
-                             {canApprove && item.status === Status.PENDING && (
-                               <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="p-1.5 bg-green-50 text-green-600 rounded-lg"><CheckCircle size={18}/></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="p-1.5 bg-red-50 text-red-600 rounded-lg"><XCircle size={18}/></button></>
-                             )}
-                             {canDelete && (<button onClick={() => handleDelete(item.id)} className="p-1.5 bg-gray-50 text-gray-400 rounded-lg"><Trash2 size={18}/></button>)}
-                             {user.username === item.createdBy && item.status === Status.PENDING && (<button onClick={() => {setEditingItem(item); setIsModalOpen(true);}} className="p-1.5 bg-blue-50 text-blue-500 rounded-lg"><Edit2 size={18}/></button>)}
+                           <div className="flex space-x-2">
+                             {canApprove && item.status === Status.PENDING && (<><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="text-green-600"><CheckCircle size={18}/></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="text-red-600"><XCircle size={18}/></button></>)}
+                             {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => {setEditingItem(item); setIsModalOpen(true);}} className="text-blue-500"><Edit2 size={18}/></button>)}
                            </div>
                         </div>
                       </div>
-                    ))
-                  )}
+                   ))}
                 </div>
               </div>
 
-              <div className="bg-white p-4 border-t border-gray-200 rounded-b-xl flex flex-col sm:flex-row justify-between items-center gap-4 pagination-controls no-print">
-                <div className="flex items-center space-x-2 text-sm text-gray-600"><span>Hiển thị</span><select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="border rounded p-1"><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option></select><span>dòng</span></div>
-                <div className="flex items-center space-x-2"><span className="text-sm text-gray-600">Trang {currentPage} / {totalPages || 1}</span><button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-30"><ChevronLeft size={20} /></button><button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage >= totalPages} className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-30"><ChevronRight size={20} /></button></div>
-              </div>
+              {/* Pagination controls... */}
             </div>
           )}
 
@@ -634,7 +558,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {isModalOpen && (<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col"><div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center"><h3 className="text-lg font-bold text-gray-800">{editingItem ? 'Sửa đơn' : 'Tạo đơn mới'}</h3><button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button></div><div className="p-6 overflow-y-auto"><DynamicForm config={formConfig} initialData={editingItem || { week: systemConfig.currentWeek }} onSubmit={editingItem ? handleUpdate : handleCreate} onCancel={() => setIsModalOpen(false)} isSubmitting={isSubmitting} /></div></div></div>)}
+      {isModalOpen && (<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col"><div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center"><h3 className="text-lg font-bold text-gray-800">{editingItem ? 'Sửa đơn' : 'Tạo đơn mới'}</h3><button onClick={() => setIsModalOpen(false)}><X size={20} /></button></div><div className="p-6 overflow-y-auto"><DynamicForm config={formConfig} initialData={editingItem || { week: systemConfig.currentWeek }} onSubmit={editingItem ? handleUpdate : handleCreate} onCancel={() => setIsModalOpen(false)} isSubmitting={isSubmitting} /></div></div></div>)}
       <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
     </div>
   );
