@@ -23,7 +23,7 @@ const MOCK_REQUESTS: LeaveRequest[] = [
   { 
     id: 'demo1', studentName: 'Nguyễn Văn A', class: '10A1', week: 1, 
     reason: 'Ốm đau', fromDate: getToday(-1), toDate: getToday(0), 
-    status: Status.APPROVED, createdBy: 'hs1', createdAt: new Date().toISOString() 
+    status: Status.APPROVED, createdBy: 'hs1', createdAt: new Date().toISOString(), approver: 'Quản Trị Viên (Demo)'
   },
   { 
     id: 'demo2', studentName: 'Trần Thị B', class: '11A2', week: 1, 
@@ -40,19 +40,19 @@ const handleMockCall = (funcName: string, ...args: any[]): any => {
       if (user || u === 'admin') {
          return { success: true, data: user || MOCK_USERS[0] };
       }
-      return { success: false, message: 'Sai tài khoản hoặc mật khẩu (Demo: admin/admin)' };
+      return { success: false, message: 'Sai tài khoản hoặc mật khẩu' };
       
     case 'api_loadAllConfigData':
       return { 
         users: MOCK_USERS, 
         requests: MOCK_REQUESTS,
-        config: { classes: ['10A1', '10A2', '11A1'], reasons: ['Ốm', 'Việc riêng'], schoolName: 'Trường Demo (Offline)', currentWeek: 1 }
+        config: { classes: ['10A1', '10A2', '11A1'], reasons: ['Ốm', 'Việc riêng'], schoolName: 'Trường Demo', currentWeek: 1 }
       };
 
     case 'api_getSystemConfig':
       return {
         success: true,
-        data: { classes: ['10A1', '10A2', '11A1'], reasons: ['Ốm', 'Việc riêng'], schoolName: 'Trường Demo (Offline)', currentWeek: 1 }
+        data: { classes: ['10A1', '10A2', '11A1'], reasons: ['Ốm', 'Việc riêng'], schoolName: 'Trường Demo', currentWeek: 1 }
       };
       
     case 'api_createRequest':
@@ -64,7 +64,7 @@ const handleMockCall = (funcName: string, ...args: any[]): any => {
     case 'api_updateUser':
     case 'api_deleteUser':
     case 'api_saveSystemConfig':
-      return { success: true, message: 'Thao tác giả lập thành công' };
+      return { success: true, message: 'Thao tác thành công' };
 
     case 'api_uploadFile':
       return "https://via.placeholder.com/150?text=Uploaded+File";
@@ -85,7 +85,7 @@ const serverCall = async (funcName: string, ...args: any[]): Promise<any> => {
   }
 
   if (isPlaceholderUrl) {
-    await delay(300);
+    await new Promise(r => setTimeout(r, 300));
     return handleMockCall(funcName, ...args);
   }
 
@@ -102,8 +102,6 @@ const serverCall = async (funcName: string, ...args: any[]): Promise<any> => {
   }
 };
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export const gasService = {
   loadAllConfigData: async (): Promise<{ users: User[], requests: LeaveRequest[], config: SystemConfigData }> => {
     return await serverCall('api_loadAllConfigData');
@@ -117,11 +115,8 @@ export const gasService = {
   login: async (username: string, password?: string): Promise<ApiResponse<User>> => {
     return await serverCall('api_login', username, password);
   },
-  register: async (data: {username: string, password: string, fullname: string, email: string, class?: string, role?: string}): Promise<ApiResponse<User>> => {
+  register: async (data: any): Promise<ApiResponse<User>> => {
     return await serverCall('api_register', data);
-  },
-  resetPassword: async (email: string): Promise<ApiResponse<string>> => {
-    return await serverCall('api_resetPassword', email);
   },
   createUser: async (data: Partial<User>): Promise<ApiResponse<User>> => {
     return await serverCall('api_createUser', data);
@@ -143,7 +138,7 @@ export const gasService = {
   },
   uploadFile: async (file: File): Promise<string> => {
     const allowedTypes = ['image/jpeg', 'image/png'];
-    const maxSize = 4 * 1024 * 1024; // Increased to 4MB
+    const maxSize = 4 * 1024 * 1024; // 4MB
 
     if (!allowedTypes.includes(file.type)) {
       throw new Error("Chỉ chấp nhận file ảnh (.jpg, .png)");
