@@ -253,8 +253,8 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="w-full md:w-1/2 p-10 md:p-14 flex flex-col justify-center">
-            {/* Logo di chuyển sang thẻ bên phải, nằm trên tiêu đề Đăng nhập */}
-            <div className="flex flex-col items-start mb-8">
+            {/* Logo và tiêu đề được căn giữa */}
+            <div className="flex flex-col items-center mb-8 text-center">
               <div className="w-24 h-24 mb-6">
                 <img src="logo.png" alt="Logo" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=Logo' }} />
               </div>
