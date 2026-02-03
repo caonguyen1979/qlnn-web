@@ -32,7 +32,8 @@ import {
   ImageIcon,
   GraduationCap,
   Mail,
-  ArrowLeft
+  ArrowLeft,
+  Briefcase
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
@@ -62,6 +63,7 @@ const App: React.FC = () => {
   const [regFullname, setRegFullname] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regClass, setRegClass] = useState('');
+  const [regRole, setRegRole] = useState<Role>(Role.HS); // Mặc định là học sinh
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<LeaveRequest | null>(null);
@@ -142,8 +144,8 @@ const App: React.FC = () => {
           password,
           fullname: regFullname,
           email: regEmail,
-          class: regClass,
-          role: Role.HS // Mặc định đăng ký là học sinh
+          class: (regRole === Role.HS || regRole === Role.GVCN) ? regClass : '', // Chỉ gửi lớp nếu là HS hoặc GVCN
+          role: regRole 
         });
         if (res.success) {
           setAuthSuccess('Đăng ký thành công! Vui lòng đăng nhập.');
@@ -333,19 +335,52 @@ const App: React.FC = () => {
               {authMode === 'register' && (
                 <>
                   <div className="space-y-1">
+                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Bạn là?</label>
+                     <div className="grid grid-cols-3 gap-2">
+                        <button 
+                          type="button" 
+                          onClick={() => setRegRole(Role.HS)} 
+                          className={`py-2.5 rounded-xl text-xs font-black uppercase transition-all border ${regRole === Role.HS ? 'bg-primary text-white border-primary shadow-lg shadow-primary/25' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`}
+                        >
+                          Học sinh
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={() => setRegRole(Role.GVCN)} 
+                          className={`py-2.5 rounded-xl text-xs font-black uppercase transition-all border ${regRole === Role.GVCN ? 'bg-primary text-white border-primary shadow-lg shadow-primary/25' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`}
+                        >
+                          GVCN
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={() => setRegRole(Role.USER)} 
+                          className={`py-2.5 rounded-xl text-xs font-black uppercase transition-all border ${regRole === Role.USER ? 'bg-primary text-white border-primary shadow-lg shadow-primary/25' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`}
+                        >
+                          Khác
+                        </button>
+                     </div>
+                  </div>
+
+                  <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Họ và tên</label>
                     <div className="relative group">
                       <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={18} />
                       <input type="text" placeholder="Nguyễn Văn A" required className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium text-sm" value={regFullname} onChange={(e) => setRegFullname(e.target.value)} />
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Lớp</label>
-                    <div className="relative group">
-                      <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={18} />
-                      <input type="text" placeholder="Ví dụ: 10A1" className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium text-sm" value={regClass} onChange={(e) => setRegClass(e.target.value)} />
+                  
+                  {/* Chỉ hiển thị nhập Lớp nếu là Học sinh hoặc GVCN */}
+                  {(regRole === Role.HS || regRole === Role.GVCN) && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                        {regRole === Role.HS ? 'Lớp đang học' : 'Lớp chủ nhiệm'}
+                      </label>
+                      <div className="relative group">
+                        <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={18} />
+                        <input type="text" placeholder="Ví dụ: 10A1" className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all font-medium text-sm" value={regClass} onChange={(e) => setRegClass(e.target.value)} />
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </>
               )}
 
