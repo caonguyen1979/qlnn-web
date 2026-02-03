@@ -1,8 +1,10 @@
+
 // Enums for Roles and Status
 export enum Role {
   ADMIN = 'ADMIN',
   USER = 'USER', // Staff/Manager
-  HS = 'HS',     // Student/Teacher requester
+  GVCN = 'GVCN', // Class Teacher (New)
+  HS = 'HS',     // Student
   VIEWER = 'VIEWER'
 }
 
