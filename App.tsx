@@ -34,7 +34,8 @@ import {
   Mail,
   ArrowLeft,
   Briefcase,
-  ChevronDown
+  ChevronDown,
+  MessageSquare // Added MessageSquare for Note/Detail icon
 } from 'lucide-react';
 
 const SESSION_KEY = 'eduleave_session';
@@ -535,59 +536,80 @@ const App: React.FC = () => {
               <div className="md:hidden flex-1 overflow-auto space-y-4 no-print pb-10">
                 {paginatedData.length === 0 ? (<div className="text-center py-20 text-gray-400 font-bold">Không tìm thấy đơn vắng học</div>) : (
                   paginatedData.map(item => (
-                    <div key={item.id} className="bg-white rounded-3xl shadow-md p-5 border border-gray-100 relative overflow-hidden active:scale-[0.99] transition-transform">
+                    <div key={item.id} className="bg-white rounded-3xl shadow-sm p-5 border border-gray-100 relative overflow-hidden mb-4">
                       {/* Status accent bar */}
                       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${item.status === Status.APPROVED ? 'bg-green-500' : item.status === Status.REJECTED ? 'bg-red-500' : 'bg-yellow-500'}`}></div>
                       
-                      <div className="flex justify-between items-start mb-4 pl-2">
-                         <div className="flex-1">
-                            <h4 className="font-black text-gray-900 text-lg leading-tight mb-1">{item.studentName} - {item.class}</h4>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tuần {item.week}</p>
+                      {/* Header: Name + Status */}
+                      <div className="flex justify-between items-start mb-2 pl-3">
+                         <div>
+                            <h4 className="font-bold text-gray-900 text-base leading-tight">{item.studentName} - {item.class}</h4>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">TUẦN {item.week}</p>
                          </div>
                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase shadow-sm ${item.status === Status.APPROVED ? 'bg-green-50 text-green-700 border border-green-100' : item.status === Status.REJECTED ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-yellow-50 text-yellow-700 border border-yellow-100'}`}>{item.status}</span>
                       </div>
 
-                      <div className="space-y-3 bg-gray-50/80 p-4 rounded-2xl border border-gray-100 mb-4">
+                      {/* Info Block */}
+                      <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100/50 space-y-4 mt-2 ml-2">
                          {/* Ngày vắng */}
-                         <div className="flex items-start space-x-3">
-                            <Calendar size={16} className="text-gray-400 mt-0.5 shrink-0" />
-                            <div className="flex-1">
-                               <span className="text-[10px] text-gray-400 uppercase font-black block leading-none mb-1">Ngày vắng</span>
-                               <span className="text-sm text-gray-800 font-bold">
-                                 {formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate ? ` đến ${formatDateDisplay(item.toDate)}` : ''}
-                               </span>
+                         <div className="flex flex-col">
+                            <div className="flex items-center space-x-2 mb-1">
+                                <Calendar size={14} className="text-gray-400" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">NGÀY VẮNG</span>
                             </div>
+                            <span className="text-sm font-bold text-gray-800 ml-6 block">
+                              {formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate ? ` đến ${formatDateDisplay(item.toDate)}` : ''}
+                            </span>
                          </div>
+                         
                          {/* Lý do vắng */}
-                         <div className="flex items-start space-x-3">
-                            <FileText size={16} className="text-gray-400 mt-0.5 shrink-0" />
-                            <div className="flex-1">
-                               <span className="text-[10px] text-gray-400 uppercase font-black block leading-none mb-1">Lý do vắng</span>
-                               <span className="text-sm text-gray-700 font-medium leading-relaxed">{item.reason}</span>
+                         <div className="flex flex-col">
+                            <div className="flex items-center space-x-2 mb-1">
+                                <FileText size={14} className="text-gray-400" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">LÝ DO VẮNG</span>
                             </div>
+                            <span className="text-sm font-medium text-gray-700 ml-6 block">{item.reason}</span>
                          </div>
-                         {/* Người duyệt đơn - Hiển thị tên đầy đủ nếu đã duyệt/từ chối */}
-                         <div className="flex items-start space-x-3 border-t border-gray-200/50 pt-3 mt-1">
-                            <CheckCircle size={16} className={`${item.status !== Status.PENDING ? 'text-green-500' : 'text-gray-300'} mt-0.5 shrink-0`} />
-                            <div className="flex-1">
-                               <span className="text-[10px] text-gray-400 uppercase font-black block leading-none mb-1">Người duyệt đơn</span>
-                               <span className="text-sm font-black text-gray-900 min-h-[1.25rem] block">
-                                 {item.status !== Status.PENDING ? (item.approver || 'Ban Giám Hiệu') : ''}
-                               </span>
+
+                         {/* Ghi chú (MỚI) */}
+                         {item.detail && (
+                           <div className="flex flex-col">
+                              <div className="flex items-center space-x-2 mb-1">
+                                  <MessageSquare size={14} className="text-gray-400" />
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">GHI CHÚ</span>
+                              </div>
+                              <span className="text-sm font-normal text-gray-600 ml-6 block italic">"{item.detail}"</span>
+                           </div>
+                         )}
+
+                         {/* Người duyệt đơn */}
+                         <div className="flex flex-col">
+                            <div className="flex items-center space-x-2 mb-1">
+                                <CheckCircle size={14} className="text-gray-400" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">NGƯỜI DUYỆT ĐƠN</span>
                             </div>
+                            <span className="text-sm font-bold text-gray-900 ml-6 block">
+                              {item.status !== Status.PENDING ? (item.approver || 'Ban Giám Hiệu') : '---'}
+                            </span>
                          </div>
                       </div>
 
-                      <div className="flex items-center justify-between">
+                      {/* Footer Actions */}
+                      <div className="flex items-center justify-between mt-4 pl-3">
                          <div className="flex space-x-2">
-                           {item.attachmentUrl && (<button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="flex items-center space-x-2 text-primary text-xs font-black bg-blue-50 px-3 py-2.5 rounded-xl border border-blue-100 active:scale-95 transition-all"><ImageIcon size={16}/> <span>Xem minh chứng</span></button>)}
+                           {item.attachmentUrl ? (
+                             <button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="flex items-center space-x-1.5 text-blue-600 bg-blue-50 px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors">
+                               <ImageIcon size={14}/> <span>Xem minh chứng</span>
+                             </button>
+                           ) : <div className="h-8"></div>}
                          </div>
+                         
                          <div className="flex items-center space-x-2">
                            {canApprove && item.status === Status.PENDING && (
-                             <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="p-3 bg-green-50 text-green-600 rounded-xl border border-green-100 active:scale-90 transition-all"><CheckCircle size={20}/></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-100 active:scale-90 transition-all"><XCircle size={20}/></button></>
+                             <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="p-2 bg-green-50 text-green-600 rounded-lg border border-green-100 active:scale-95 transition-all"><CheckCircle size={18}/></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="p-2 bg-red-50 text-red-600 rounded-lg border border-red-100 active:scale-95 transition-all"><XCircle size={18}/></button></>
                            )}
-                           {canDelete && (<button onClick={() => handleDelete(item.id)} className="p-3 bg-gray-50 text-gray-400 rounded-xl border border-gray-200 active:scale-90 transition-all"><Trash2 size={20}/></button>)}
-                           {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => {setEditingItem(item); setIsModalOpen(true);}} className="p-3 bg-blue-50 text-blue-500 rounded-xl border border-blue-100 active:scale-90 transition-all"><Edit2 size={20}/></button>)}
+                           {canDelete && (<button onClick={() => handleDelete(item.id)} className="p-2 bg-gray-50 text-gray-400 rounded-lg border border-gray-200 active:scale-95 transition-all"><Trash2 size={18}/></button>)}
+                           {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => {setEditingItem(item); setIsModalOpen(true);}} className="p-2 bg-blue-50 text-blue-500 rounded-lg border border-blue-100 active:scale-95 transition-all"><Edit2 size={18}/></button>)}
                          </div>
                       </div>
                     </div>
