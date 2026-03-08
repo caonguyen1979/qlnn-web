@@ -76,6 +76,8 @@ const App: React.FC = () => {
   const [filterClass, setFilterClass] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterWeek, setFilterWeek] = useState(''); 
+  const [filterType, setFilterType] = useState(''); 
+  const [dashboardRequestType, setDashboardRequestType] = useState<'Vắng học' | 'Đi muộn'>('Vắng học');
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -232,11 +234,14 @@ const App: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: Status) => {
+  const handleStatusChange = async (id: string, newStatus: Status, attachmentUrl?: string) => {
     const previousData = [...data];
-    setData(prev => prev.map(item => item.id === id ? { ...item, status: newStatus, approver: user?.fullname || user?.username } : item));
+    const updates: any = { status: newStatus, approver: user?.fullname || user?.username };
+    if (attachmentUrl) updates.approverAttachmentUrl = attachmentUrl;
+    
+    setData(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
     try {
-      await gasService.updateRequest(id, { status: newStatus, approver: user?.fullname || user?.username });
+      await gasService.updateRequest(id, updates);
     } catch (err) {
       setData(previousData);
       alert("Lỗi khi cập nhật trạng thái");
@@ -258,10 +263,11 @@ const App: React.FC = () => {
       const matchesClass = filterClass ? item.class === filterClass : true;
       const matchesStatus = filterStatus ? item.status === filterStatus : true;
       const matchesWeek = filterWeek ? String(item.week) === String(filterWeek) : true;
+      const matchesType = filterType ? (item.type || 'Vắng học') === filterType : true;
       const permissionCheck = user?.role === Role.HS ? item.createdBy === user.username : true;
-      return matchesSearch && matchesClass && matchesStatus && matchesWeek && permissionCheck;
+      return matchesSearch && matchesClass && matchesStatus && matchesWeek && matchesType && permissionCheck;
     });
-  }, [data, searchTerm, filterClass, filterStatus, filterWeek, user]);
+  }, [data, searchTerm, filterClass, filterStatus, filterWeek, filterType, user]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -285,6 +291,30 @@ const App: React.FC = () => {
     }
     return baseConfig.filter(c => c.key !== 'status' || PERMISSIONS[user?.role || Role.VIEWER].canApprove);
   }, [systemConfig, user]);
+
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+  const [approvalItem, setApprovalItem] = useState<LeaveRequest | null>(null);
+  const [approvalAttachment, setApprovalAttachment] = useState<File | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
+
+  const handleApproveConfirm = async () => {
+    if (!approvalItem) return;
+    setIsApproving(true);
+    try {
+      let attachmentUrl = '';
+      if (approvalAttachment) {
+        attachmentUrl = await gasService.uploadFile(approvalAttachment);
+      }
+      await handleStatusChange(approvalItem.id, Status.APPROVED, attachmentUrl);
+      setApprovalModalOpen(false);
+      setApprovalItem(null);
+      setApprovalAttachment(null);
+    } catch (err: any) {
+      alert(err.message || "Lỗi khi duyệt đơn");
+    } finally {
+      setIsApproving(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -498,23 +528,23 @@ const App: React.FC = () => {
                
                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 no-print">
                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tổng đơn (T{selectedDashboardWeek})</p>
-                    <p className="text-3xl font-black text-gray-800">{data.filter(r => Number(r.week) === selectedDashboardWeek).length}</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tổng đơn {dashboardRequestType} (T{selectedDashboardWeek})</p>
+                    <p className="text-3xl font-black text-gray-800">{data.filter(r => Number(r.week) === selectedDashboardWeek && (r.type || 'Vắng học') === dashboardRequestType).length}</p>
                  </div>
                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Đang chờ</p>
-                    <p className="text-3xl font-black text-yellow-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.PENDING).length}</p>
+                    <p className="text-3xl font-black text-yellow-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.PENDING && (i.type || 'Vắng học') === dashboardRequestType).length}</p>
                  </div>
                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Đã duyệt</p>
-                    <p className="text-3xl font-black text-green-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.APPROVED).length}</p>
+                    <p className="text-3xl font-black text-green-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.APPROVED && (i.type || 'Vắng học') === dashboardRequestType).length}</p>
                  </div>
                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Từ chối</p>
-                    <p className="text-3xl font-black text-red-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.REJECTED).length}</p>
+                    <p className="text-3xl font-black text-red-500">{data.filter(i => Number(i.week) === selectedDashboardWeek && i.status === Status.REJECTED && (i.type || 'Vắng học') === dashboardRequestType).length}</p>
                  </div>
               </div>
-              <DashboardChart allData={data} systemConfig={systemConfig} selectedWeek={selectedDashboardWeek} />
+              <DashboardChart allData={data} systemConfig={systemConfig} selectedWeek={selectedDashboardWeek} requestType={dashboardRequestType} setRequestType={setDashboardRequestType} />
             </div>
           )}
 
@@ -524,6 +554,7 @@ const App: React.FC = () => {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   <div className="flex flex-1 flex-wrap items-center gap-3">
                     <div className="relative flex-1 min-w-[280px]"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} /><input type="text" placeholder="Tìm tên, ID..." className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 focus:border-primary outline-none text-sm font-medium" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+                    <select className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none" value={filterType} onChange={(e) => setFilterType(e.target.value)}><option value="">Mọi loại đơn</option><option value="Vắng học">Vắng học</option><option value="Đi muộn">Đi muộn</option></select>
                     <select className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none" value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)}><option value="">Mọi tuần</option>{availableWeeks.map(w => <option key={w} value={w}>Tuần {w}</option>)}</select>
                     <select className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none" value={filterClass} onChange={(e) => setFilterClass(e.target.value)}><option value="">Mọi lớp</option>{systemConfig.classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
                     <select className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="">Mọi trạng thái</option>{Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}</select>
@@ -534,7 +565,7 @@ const App: React.FC = () => {
 
               {/* MOBILE CARD VIEW - HIỂN THỊ ĐẦY ĐỦ THÔNG TIN THEO YÊU CẦU */}
               <div className="md:hidden flex-1 overflow-auto space-y-4 no-print pb-10">
-                {paginatedData.length === 0 ? (<div className="text-center py-20 text-gray-400 font-bold">Không tìm thấy đơn vắng học</div>) : (
+                {paginatedData.length === 0 ? (<div className="text-center py-20 text-gray-400 font-bold">Không tìm thấy đơn</div>) : (
                   paginatedData.map(item => (
                     <div key={item.id} className="bg-white rounded-3xl shadow-sm p-5 border border-gray-100 relative overflow-hidden mb-4">
                       {/* Status accent bar */}
@@ -544,7 +575,10 @@ const App: React.FC = () => {
                       <div className="flex justify-between items-start mb-2 pl-3">
                          <div>
                             <h4 className="font-bold text-gray-900 text-base leading-tight">{item.studentName} - {item.class}</h4>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">TUẦN {item.week}</p>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">TUẦN {item.week}</p>
+                              <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-bold uppercase">{item.type || 'Vắng học'}</span>
+                            </div>
                          </div>
                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase shadow-sm ${item.status === Status.APPROVED ? 'bg-green-50 text-green-700 border border-green-100' : item.status === Status.REJECTED ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-yellow-50 text-yellow-700 border border-yellow-100'}`}>{item.status}</span>
                       </div>
@@ -555,7 +589,7 @@ const App: React.FC = () => {
                          <div className="flex flex-col">
                             <div className="flex items-center space-x-2 mb-1">
                                 <Calendar size={14} className="text-gray-400" />
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">NGÀY VẮNG</span>
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">THỜI GIAN</span>
                             </div>
                             <span className="text-sm font-bold text-gray-800 ml-6 block">
                               {formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate ? ` đến ${formatDateDisplay(item.toDate)}` : ''}
@@ -566,7 +600,7 @@ const App: React.FC = () => {
                          <div className="flex flex-col">
                             <div className="flex items-center space-x-2 mb-1">
                                 <FileText size={14} className="text-gray-400" />
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">LÝ DO VẮNG</span>
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">LÝ DO</span>
                             </div>
                             <span className="text-sm font-medium text-gray-700 ml-6 block">{item.reason}</span>
                          </div>
@@ -599,14 +633,19 @@ const App: React.FC = () => {
                          <div className="flex space-x-2">
                            {item.attachmentUrl ? (
                              <button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="flex items-center space-x-1.5 text-blue-600 bg-blue-50 px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors">
-                               <ImageIcon size={14}/> <span>Xem minh chứng</span>
+                               <ImageIcon size={14}/> <span>Minh chứng</span>
                              </button>
                            ) : <div className="h-8"></div>}
+                           {item.approverAttachmentUrl && (
+                             <button onClick={() => setPreviewImageUrl(item.approverAttachmentUrl || '')} className="flex items-center space-x-1.5 text-green-600 bg-green-50 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-100 transition-colors">
+                               <ImageIcon size={14}/> <span>MC Duyệt</span>
+                             </button>
+                           )}
                          </div>
                          
                          <div className="flex items-center space-x-2">
                            {canApprove && item.status === Status.PENDING && (
-                             <><button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="p-2 bg-green-50 text-green-600 rounded-lg border border-green-100 active:scale-95 transition-all"><CheckCircle size={18}/></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="p-2 bg-red-50 text-red-600 rounded-lg border border-red-100 active:scale-95 transition-all"><XCircle size={18}/></button></>
+                             <><button onClick={() => { setApprovalItem(item); setApprovalModalOpen(true); }} className="p-2 bg-green-50 text-green-600 rounded-lg border border-green-100 active:scale-95 transition-all"><CheckCircle size={18}/></button><button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="p-2 bg-red-50 text-red-600 rounded-lg border border-red-100 active:scale-95 transition-all"><XCircle size={18}/></button></>
                            )}
                            {canDelete && (<button onClick={() => handleDelete(item.id)} className="p-2 bg-gray-50 text-gray-400 rounded-lg border border-gray-200 active:scale-95 transition-all"><Trash2 size={18}/></button>)}
                            {(user.username === item.createdBy || user.role === Role.ADMIN) && item.status === Status.PENDING && (<button onClick={() => {setEditingItem(item); setIsModalOpen(true);}} className="p-2 bg-blue-50 text-blue-500 rounded-lg border border-blue-100 active:scale-95 transition-all"><Edit2 size={18}/></button>)}
@@ -623,9 +662,10 @@ const App: React.FC = () => {
                   <thead className="text-[10px] text-gray-400 uppercase font-black bg-gray-50/50 border-b sticky top-0 tracking-widest z-10">
                     <tr>
                       <th className="px-6 py-4">Tuần</th>
+                      <th className="px-6 py-4">Loại đơn</th>
                       <th className="px-6 py-4">Học sinh</th>
                       <th className="px-6 py-4">Lớp</th>
-                      <th className="px-6 py-4">Ngày nghỉ</th>
+                      <th className="px-6 py-4">Ngày nghỉ/muộn</th>
                       <th className="px-6 py-4">Lý do</th>
                       <th className="px-6 py-4 text-center">Minh chứng</th>
                       <th className="px-6 py-4">Trạng thái</th>
@@ -637,18 +677,26 @@ const App: React.FC = () => {
                     {paginatedData.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50/30 transition-colors">
                         <td className="px-6 py-5 font-black text-gray-400">{item.week}</td>
+                        <td className="px-6 py-5 font-bold text-gray-600">{item.type || 'Vắng học'}</td>
                         <td className="px-6 py-5 font-bold text-gray-900">{item.studentName}</td>
                         <td className="px-6 py-5 font-medium">{item.class}</td>
                         <td className="px-6 py-5 whitespace-nowrap font-medium text-gray-700">{formatDateDisplay(item.fromDate)} {item.fromDate !== item.toDate && ` - ${formatDateDisplay(item.toDate)}`}</td>
                         <td className="px-6 py-5 text-gray-500 max-w-xs truncate">{item.reason}</td>
                         <td className="px-6 py-5 text-center">
-                          {item.attachmentUrl ? (
-                            <button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="p-2 text-primary hover:bg-blue-50 rounded-xl transition-colors">
-                              <Eye size={18} />
-                            </button>
-                          ) : (
-                            <span className="text-gray-200">-</span>
-                          )}
+                          <div className="flex items-center justify-center space-x-2">
+                            {item.attachmentUrl ? (
+                              <button onClick={() => setPreviewImageUrl(item.attachmentUrl || '')} className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-colors" title="Minh chứng người xin">
+                                <ImageIcon size={18} />
+                              </button>
+                            ) : (
+                              <span className="text-gray-200">-</span>
+                            )}
+                            {item.approverAttachmentUrl && (
+                              <button onClick={() => setPreviewImageUrl(item.approverAttachmentUrl || '')} className="p-2 text-green-500 hover:bg-green-50 rounded-xl transition-colors" title="Minh chứng người duyệt">
+                                <CheckCircle size={18} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-5">
                           <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${item.status === Status.APPROVED ? 'bg-green-50 text-green-700 border-green-100' : item.status === Status.REJECTED ? 'bg-red-50 text-red-700 border-red-100' : 'bg-yellow-50 text-yellow-700 border-yellow-100'}`}>
@@ -662,7 +710,7 @@ const App: React.FC = () => {
                             <div className="flex items-center justify-center space-x-1">
                               {canApprove && item.status === Status.PENDING && (
                                 <>
-                                  <button onClick={() => handleStatusChange(item.id, Status.APPROVED)} className="text-green-600 p-2 hover:bg-green-50 rounded-lg transition-colors" title="Duyệt đơn"><CheckCircle size={20} /></button>
+                                  <button onClick={() => { setApprovalItem(item); setApprovalModalOpen(true); }} className="text-green-600 p-2 hover:bg-green-50 rounded-lg transition-colors" title="Duyệt đơn"><CheckCircle size={20} /></button>
                                   <button onClick={() => handleStatusChange(item.id, Status.REJECTED)} className="text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors" title="Từ chối"><XCircle size={20} /></button>
                                 </>
                               )}
@@ -688,11 +736,58 @@ const App: React.FC = () => {
       </main>
 
       {/* Modals */}
+      {approvalModalOpen && approvalItem && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b bg-gray-50/50 flex justify-between items-center">
+              <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight">Duyệt đơn</h3>
+              <button onClick={() => { setApprovalModalOpen(false); setApprovalAttachment(null); }} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">Bạn đang duyệt đơn của <span className="font-bold text-gray-900">{approvalItem.studentName}</span>.</p>
+              
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Minh chứng duyệt (Tùy chọn)</label>
+                <input 
+                  type="file" 
+                  accept="image/jpeg, image/png"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setApprovalAttachment(e.target.files[0]);
+                    }
+                  }}
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all cursor-pointer border border-gray-200 rounded-xl p-2"
+                />
+                <p className="text-[10px] text-gray-400">Chỉ hỗ trợ file ảnh (.jpg, .png), tối đa 4MB.</p>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button 
+                  onClick={() => { setApprovalModalOpen(false); setApprovalAttachment(null); }}
+                  className="flex-1 py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button 
+                  onClick={handleApproveConfirm}
+                  disabled={isApproving}
+                  className="flex-1 py-3 rounded-xl font-bold text-white bg-green-500 hover:bg-green-600 transition-colors disabled:opacity-50"
+                >
+                  {isApproving ? 'Đang xử lý...' : 'Xác nhận duyệt'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div className="px-8 py-5 border-b bg-gray-50/50 flex justify-between items-center">
-              <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">{editingItem ? 'CẬP NHẬT ĐƠN VẮNG' : 'TẠO ĐƠN VẮNG MỚI'}</h3>
+              <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">{editingItem ? 'CẬP NHẬT ĐƠN' : 'TẠO ĐƠN MỚI'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors">
                 <X size={24} />
               </button>
