@@ -47,6 +47,7 @@ export interface User {
 
 export interface LeaveRequest {
   id: string;
+  type: 'Vắng học' | 'Đi muộn'; // Added type
   studentName: string;
   class: string;
   week: number; // Added week field
@@ -58,6 +59,7 @@ export interface LeaveRequest {
   createdAt: string;
   approver?: string; 
   attachmentUrl?: string;
+  approverAttachmentUrl?: string; // Added approver attachment
   [key: string]: any; // Allow dynamic fields based on config
 }
 
@@ -81,4 +83,6 @@ export interface DashboardStats {
   pending: number;
   approved: number;
   rejected: number;
+  absentTotal: number;
+  lateTotal: number;
 }
