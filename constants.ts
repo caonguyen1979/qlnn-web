@@ -4,14 +4,16 @@ import { ColumnConfig, Role } from "./types";
 // Simulate the "Settings" sheet configuration
 export const LEAVE_REQUEST_CONFIG: ColumnConfig[] = [
   { key: 'id', label: 'ID', type: 'text', hidden: true, noSave: false },
+  { key: 'type', label: 'Loại đơn', type: 'select', options: ['Vắng học', 'Đi muộn'], required: true },
   { key: 'week', label: 'Tuần học', type: 'number', required: true, width: 'w-1/4' },
   { key: 'studentName', label: 'Họ và tên học sinh', type: 'text', required: true },
   { key: 'class', label: 'Lớp', type: 'select', options: ['10A1', '10A2', '11A1', '11A2', '12A1'], required: true },
-  { key: 'reason', label: 'Lý do nghỉ', type: 'select', options: ['Ốm đau', 'Việc gia đình', 'Đi khám bệnh', 'Khác'], required: true },
+  { key: 'reason', label: 'Lý do', type: 'select', options: ['Ốm đau', 'Việc gia đình', 'Đi khám bệnh', 'Khác'], required: true },
   { key: 'detail', label: 'Chi tiết', type: 'textarea', required: false },
   { key: 'fromDate', label: 'Từ ngày', type: 'date', required: true },
   { key: 'toDate', label: 'Đến ngày', type: 'date', required: true },
   { key: 'attachmentUrl', label: 'Minh chứng (Ảnh/File)', type: 'file', required: false },
+  { key: 'approverAttachmentUrl', label: 'Minh chứng duyệt', type: 'file', required: false, hidden: true },
   { key: 'status', label: 'Trạng thái', type: 'select', options: ['Chờ duyệt', 'Đã duyệt', 'Từ chối'], required: false, noSave: false },
 ];
 
