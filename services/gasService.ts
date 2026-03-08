@@ -21,12 +21,12 @@ const MOCK_USERS: User[] = [
 
 const MOCK_REQUESTS: LeaveRequest[] = [
   { 
-    id: 'demo1', studentName: 'Nguyễn Văn A', class: '10A1', week: 1, 
+    id: 'demo1', type: 'Vắng học', studentName: 'Nguyễn Văn A', class: '10A1', week: 1, 
     reason: 'Ốm đau', fromDate: getToday(-1), toDate: getToday(0), 
     status: Status.APPROVED, createdBy: 'hs1', createdAt: new Date().toISOString(), approver: 'Quản Trị Viên (Demo)'
   },
   { 
-    id: 'demo2', studentName: 'Trần Thị B', class: '11A2', week: 1, 
+    id: 'demo2', type: 'Đi muộn', studentName: 'Trần Thị B', class: '11A2', week: 1, 
     reason: 'Việc gia đình', fromDate: getToday(1), toDate: getToday(1), 
     status: Status.PENDING, createdBy: 'gv1', createdAt: new Date().toISOString() 
   }
@@ -167,6 +167,7 @@ export const gasService = {
     });
   },
   getStats: async (): Promise<DashboardStats> => {
-    return { total: 0, pending: 0, approved: 0, rejected: 0 };
+    return { total: 0, pending: 0, approved: 0, rejected: 0, absentTotal: 0, lateTotal: 0 };
   }
 };
+
