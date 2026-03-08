@@ -7,9 +7,11 @@ interface DashboardChartProps {
   allData: LeaveRequest[];
   systemConfig: SystemConfigData;
   selectedWeek: number;
+  requestType: 'Vắng học' | 'Đi muộn';
+  setRequestType: (type: 'Vắng học' | 'Đi muộn') => void;
 }
 
-export const DashboardChart: React.FC<DashboardChartProps> = ({ allData, systemConfig, selectedWeek }) => {
+export const DashboardChart: React.FC<DashboardChartProps> = ({ allData, systemConfig, selectedWeek, requestType, setRequestType }) => {
   // Local state for analysis range
   const [fromWeek, setFromWeek] = useState<number>(1);
   const [toWeek, setToWeek] = useState<number>(systemConfig.currentWeek || 1);
@@ -25,16 +27,17 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({ allData, systemC
 
   // Data filtered by the global selected week (for original charts)
   const currentWeekData = useMemo(() => 
-    allData.filter(r => Number(r.week) === selectedWeek), 
-  [allData, selectedWeek]);
+    allData.filter(r => Number(r.week) === selectedWeek && (r.type || 'Vắng học') === requestType), 
+  [allData, selectedWeek, requestType]);
 
   // Data filtered by analysis range (INCLUDES ALL STATUSES: Pending, Approved, Rejected)
   const rangeFilteredData = useMemo(() => {
     return allData.filter(r => 
       Number(r.week) >= fromWeek && 
-      Number(r.week) <= toWeek
+      Number(r.week) <= toWeek &&
+      (r.type || 'Vắng học') === requestType
     );
-  }, [allData, fromWeek, toWeek]);
+  }, [allData, fromWeek, toWeek, requestType]);
 
   // Original Chart 1: Status (for current week)
   const statusCounts = [
@@ -81,6 +84,24 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({ allData, systemC
 
   return (
     <div className="space-y-8 pb-12">
+      {/* Type Toggle */}
+      <div className="flex justify-center mb-6 no-print">
+        <div className="bg-white p-1 rounded-2xl border border-gray-200 shadow-sm inline-flex">
+          <button 
+            onClick={() => setRequestType('Vắng học')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${requestType === 'Vắng học' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'}`}
+          >
+            Đơn vắng học
+          </button>
+          <button 
+            onClick={() => setRequestType('Đi muộn')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${requestType === 'Đi muộn' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'}`}
+          >
+            Đơn đi muộn
+          </button>
+        </div>
+      </div>
+
       {/* SECTION 1: GLOBAL CHARTS (Current Week Overview) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -174,7 +195,7 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({ allData, systemC
             <div className="flex items-center justify-between mb-6">
                <div className="flex items-center space-x-2">
                  <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><School size={18}/></div>
-                 <h4 className="font-bold text-gray-700">Tổng lượt xin phép theo lớp</h4>
+                 <h4 className="font-bold text-gray-700">Tổng lượt {requestType.toLowerCase()} theo lớp</h4>
                </div>
                <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{classStats.length} lớp có đơn</span>
             </div>
@@ -208,14 +229,14 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({ allData, systemC
             <div className="flex items-center justify-between mb-6">
                <div className="flex items-center space-x-2">
                  <div className="p-2 bg-orange-50 text-orange-600 rounded-lg"><Award size={18}/></div>
-                 <h4 className="font-bold text-gray-700">Top 10 học sinh vắng nhiều nhất</h4>
+                 <h4 className="font-bold text-gray-700">Top 10 học sinh {requestType === 'Vắng học' ? 'vắng học' : 'đi muộn'} nhiều nhất</h4>
                </div>
                <Users size={16} className="text-gray-300" />
             </div>
 
             <div className="space-y-3">
               {studentStats.length === 0 ? (
-                <div className="py-12 text-center text-gray-400 text-sm">Không có dữ liệu học sinh vắng</div>
+                <div className="py-12 text-center text-gray-400 text-sm">Không có dữ liệu học sinh {requestType === 'Vắng học' ? 'vắng học' : 'đi muộn'}</div>
               ) : (
                 studentStats.map((item, idx) => (
                   <div key={`${item.name}-${item.class}`} className="flex items-center space-x-4 p-3 rounded-xl hover:bg-gray-50 transition-all border border-transparent hover:border-gray-100 group">
@@ -231,7 +252,7 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({ allData, systemC
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-black text-gray-900">{item.count}</div>
-                      <div className="text-[10px] text-gray-400 uppercase font-bold">Lượt vắng</div>
+                      <div className="text-[10px] text-gray-400 uppercase font-bold">Lượt {requestType === 'Vắng học' ? 'vắng học' : 'đi muộn'}</div>
                     </div>
                   </div>
                 ))
