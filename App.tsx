@@ -143,13 +143,14 @@ const App: React.FC = () => {
           setAuthError(res.message || 'Đăng nhập thất bại');
         }
       } else if (authMode === 'register') {
+        const assignedRole = (regRole === Role.HS || regRole === Role.GVCN) ? regRole : Role.VIEWER;
         const res = await gasService.register({
           username,
           password,
           fullname: regFullname,
           email: regEmail,
-          class: (regRole === Role.HS || regRole === Role.GVCN) ? regClass : '', // Chỉ gửi lớp nếu là HS hoặc GVCN
-          role: regRole 
+          class: (assignedRole === Role.HS || assignedRole === Role.GVCN) ? regClass : '', // Chỉ gửi lớp nếu là HS hoặc GVCN
+          role: assignedRole 
         });
         if (res.success) {
           setAuthSuccess('Đăng ký thành công! Vui lòng đăng nhập.');
@@ -385,12 +386,17 @@ const App: React.FC = () => {
                         </button>
                         <button 
                           type="button" 
-                          onClick={() => setRegRole(Role.USER)} 
-                          className={`py-2.5 rounded-xl text-xs font-black uppercase transition-all border ${regRole === Role.USER ? 'bg-primary text-white border-primary shadow-lg shadow-primary/25' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`}
+                          onClick={() => setRegRole(Role.VIEWER)} 
+                          className={`py-2.5 rounded-xl text-xs font-black uppercase transition-all border ${regRole === Role.VIEWER ? 'bg-primary text-white border-primary shadow-lg shadow-primary/25' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`}
                         >
                           Khác
                         </button>
                      </div>
+                     {regRole === Role.VIEWER && (
+                       <p className="text-[11px] text-gray-500 mt-1.5 px-1 leading-tight">
+                         * Lựa chọn &quot;Khác&quot; sẽ mặc định được gán vai trò <strong>Người xem (VIEWER)</strong>. Vai trò <strong>USER</strong> (duyệt đơn) chỉ do Admin phân quyền.
+                       </p>
+                     )}
                   </div>
 
                   <div className="space-y-1">
