@@ -73,12 +73,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
                 <td className="px-6 py-4 font-medium">{u.username}</td>
                 <td className="px-6 py-4">{u.fullname}</td>
                 <td className="px-6 py-4">
-                  <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase
+                  <span className={`px-2.5 py-1 rounded-full font-bold text-[11px] uppercase tracking-wider inline-flex items-center
                     ${u.role === Role.ADMIN ? 'bg-purple-100 text-purple-700' :
+                      u.role === Role.USER ? 'bg-blue-100 text-blue-700 border border-blue-200' :
                       u.role === Role.GVCN ? 'bg-orange-100 text-orange-700' :
-                      u.role === Role.USER ? 'bg-blue-100 text-blue-700' :
                       u.role === Role.HS ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                    {u.role}
+                    {u.role === Role.ADMIN ? 'ADMIN (Quản trị)' :
+                     u.role === Role.USER ? 'USER (Duyệt đơn)' :
+                     u.role === Role.GVCN ? 'GVCN' :
+                     u.role === Role.HS ? 'Học sinh' : 'VIEWER (Khác)'}
                   </span>
                 </td>
                 <td className="px-6 py-4">{u.class}</td>
@@ -100,8 +103,41 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onRefresh
               <div><label className="block text-xs font-bold text-gray-400 uppercase">Mật khẩu {editingUser.id && '(Để trống nếu không đổi)'}</label><input type="password" className="w-full border rounded-lg px-3 py-2 outline-none focus:border-primary" value={password} onChange={e => setPassword(e.target.value)} placeholder="******"/></div>
               <div><label className="block text-xs font-bold text-gray-400 uppercase">Họ và tên *</label><input type="text" required className="w-full border rounded-lg px-3 py-2 outline-none focus:border-primary" value={editingUser.fullname || ''} onChange={e => setEditingUser(prev => ({...prev, fullname: e.target.value}))}/></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-xs font-bold text-gray-400 uppercase">Vai trò</label><select className="w-full border rounded-lg px-3 py-2 outline-none" value={editingUser.role || Role.HS} onChange={e => setEditingUser(prev => ({...prev, role: e.target.value as Role}))}>{Object.values(Role).map(r => <option key={r} value={r}>{r}</option>)}</select></div>
-                <div><label className="block text-xs font-bold text-gray-400 uppercase">Lớp / Mô tả</label><input type="text" className="w-full border rounded-lg px-3 py-2 outline-none" value={editingUser.class || ''} onChange={e => setEditingUser(prev => ({...prev, class: e.target.value}))}/></div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase">Vai trò *</label>
+                  <select 
+                    className="w-full border rounded-lg px-3 py-2 outline-none focus:border-primary text-sm font-medium" 
+                    value={editingUser.role || Role.HS} 
+                    onChange={e => setEditingUser(prev => ({...prev, role: e.target.value as Role}))}
+                  >
+                    <option value={Role.HS}>HS (Học sinh)</option>
+                    <option value={Role.GVCN}>GVCN (Giáo viên chủ nhiệm)</option>
+                    <option value={Role.VIEWER}>VIEWER (Người xem)</option>
+                    <option value={Role.USER}>USER (Quản lý / Duyệt đơn)</option>
+                    <option value={Role.ADMIN}>ADMIN (Quản trị viên)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase">Lớp / Mô tả</label>
+                  <input 
+                    type="text" 
+                    list="classList"
+                    placeholder="VD: 10A1"
+                    className="w-full border rounded-lg px-3 py-2 outline-none focus:border-primary text-sm" 
+                    value={editingUser.class || ''} 
+                    onChange={e => setEditingUser(prev => ({...prev, class: e.target.value}))}
+                  />
+                  <datalist id="classList">
+                    {classes.map(c => <option key={c} value={c} />)}
+                  </datalist>
+                </div>
+              </div>
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-2.5 text-xs text-blue-800">
+                <p className="font-semibold mb-0.5">Phân quyền vai trò:</p>
+                <p className="text-[11px] text-blue-700">
+                  Người dùng khi đăng ký chỉ có thể là HS, GVCN hoặc VIEWER (Khác). 
+                  Chỉ có Admin mới có thể phân quyền hoặc chuyển tài khoản thành <strong>USER</strong> (có quyền duyệt đơn).
+                </p>
               </div>
               <div className="pt-3"><button type="submit" disabled={loading} className="w-full bg-primary text-white py-2 rounded-lg font-bold hover:bg-blue-600 disabled:opacity-50">{loading ? 'Đang xử lý...' : 'Lưu dữ liệu'}</button></div>
             </form>
