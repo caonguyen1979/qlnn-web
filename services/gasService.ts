@@ -2,6 +2,8 @@
 import { User, Role, LeaveRequest, Status, ApiResponse, DashboardStats, SystemConfigData } from '../types';
 
 // --- CONFIGURATION ---
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxzZGX6G6LASRT_kudGvRO69iVyZ81bfr0WDXcA0G5GKjHXngkCu-GMwnhdO26stHoE/exec"; 
+
 const isGAS = typeof window !== 'undefined' && (window as any).google && (window as any).google.script;
 const isPlaceholderUrl = GAS_API_URL.includes("AKfycbyvj5mG2y9_Ym6_Zz5XqXqXqXqXq");
 
@@ -13,8 +15,10 @@ const getToday = (offsetDays = 0) => {
 
 const MOCK_USERS: User[] = [
   { id: 'u1', username: 'admin', fullname: 'Quản Trị Viên (Demo)', role: Role.ADMIN, class: '' },
-  { id: 'u2', username: 'hs1', fullname: 'Nguyễn Văn A (Demo)', role: Role.HS, class: '10A1' },
-  { id: 'u3', username: 'gv1', fullname: 'GVCN Lớp 10A1', role: Role.GVCN, class: '10A1' },
+  { id: 'u2', username: 'user1', fullname: 'Nguyễn Văn Quản Lý (Demo)', role: Role.USER, class: '' },
+  { id: 'u3', username: 'gv1', fullname: 'GVCN Lớp 10A1 (Demo)', role: Role.GVCN, class: '10A1' },
+  { id: 'u4', username: 'hs1', fullname: 'Nguyễn Văn A (Demo)', role: Role.HS, class: '10A1' },
+  { id: 'u5', username: 'viewer1', fullname: 'Khách Xem (Demo)', role: Role.VIEWER, class: '' },
 ];
 
 const MOCK_REQUESTS: LeaveRequest[] = [
@@ -56,13 +60,58 @@ const handleMockCall = (funcName: string, ...args: any[]): any => {
     case 'api_createRequest':
       return { success: true, data: { ...args[0], id: `mock-${Date.now()}`, status: Status.PENDING, createdAt: new Date().toISOString() } };
       
+    case 'api_register': {
+      const regData = args[0];
+      const assignedRole = regData.role === Role.HS ? Role.HS : (regData.role === Role.GVCN ? Role.GVCN : Role.VIEWER);
+      const newUser: User = {
+        id: `u${MOCK_USERS.length + 1}-${Date.now().toString().slice(-4)}`,
+        username: regData.username,
+        fullname: regData.fullname,
+        email: regData.email,
+        role: assignedRole,
+        class: (assignedRole === Role.HS || assignedRole === Role.GVCN) ? (regData.class || '') : ''
+      };
+      MOCK_USERS.push(newUser);
+      return { success: true, data: newUser, message: 'Đăng ký thành công!' };
+    }
+
+    case 'api_createUser': {
+      const userData = args[0];
+      const newUser: User = {
+        id: `u${MOCK_USERS.length + 1}-${Date.now().toString().slice(-4)}`,
+        username: userData.username,
+        fullname: userData.fullname,
+        email: userData.email,
+        role: userData.role || Role.VIEWER,
+        class: userData.class || ''
+      };
+      MOCK_USERS.push(newUser);
+      return { success: true, data: newUser, message: 'Tạo tài khoản thành công!' };
+    }
+
+    case 'api_updateUser': {
+      const [id, updates] = args;
+      const userIndex = MOCK_USERS.findIndex(u => u.id === id);
+      if (userIndex !== -1) {
+        MOCK_USERS[userIndex] = { ...MOCK_USERS[userIndex], ...updates };
+        return { success: true, data: MOCK_USERS[userIndex], message: 'Cập nhật thành công!' };
+      }
+      return { success: false, message: 'Không tìm thấy người dùng' };
+    }
+
+    case 'api_deleteUser': {
+      const id = args[0];
+      const idx = MOCK_USERS.findIndex(u => u.id === id);
+      if (idx !== -1) {
+        MOCK_USERS.splice(idx, 1);
+        return { success: true, message: 'Xóa thành công!' };
+      }
+      return { success: false, message: 'Không tìm thấy người dùng' };
+    }
+
     case 'api_updateRequest':
     case 'api_deleteRequest':
-    case 'api_createUser':
-    case 'api_updateUser':
-    case 'api_deleteUser':
     case 'api_saveSystemConfig':
-    case 'api_register':
     case 'api_resetPassword':
       return { success: true, message: 'Thao tác thành công (Mock)' };
 
